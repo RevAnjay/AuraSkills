@@ -44,11 +44,12 @@ public class SharpHook extends ManaAbilityProvider {
 
     @EventHandler
     public void sharpHook(PlayerInteractEvent event) {
-        if (isDisabled()) return;
         // If left click with fishing rod
         if (event.getAction() != Action.LEFT_CLICK_AIR && event.getAction() != Action.LEFT_CLICK_BLOCK) return;
         ItemStack item = event.getItem();
         if (item == null || item.getType() != Material.FISHING_ROD) return;
+
+        if (isDisabled()) return;
 
         if (shouldIgnoreItem(item)) return;
 

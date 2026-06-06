@@ -38,10 +38,66 @@ public class TextUtil {
         if (rep.length % 2 != 0) {
             throw new IllegalArgumentException("The number of arguments must be even!");
         }
-        for (int i = 0; i < rep.length; i += 2) {
-            source = replace(source, rep[i], rep[i + 1]);
+        if (rep.length == 2) {
+            return replace(source, rep[0], rep[1]);
         }
-        return source;
+        int pairs = rep.length / 2;
+
+        boolean hasAny = false;
+        for (int p = 0; p < pairs; p++) {
+            String target = rep[p * 2];
+            if (!target.isEmpty() && source.contains(target)) {
+                hasAny = true;
+                break;
+            }
+        }
+        if (!hasAny) {
+            return source;
+        }
+
+        char[] firstChars = new char[pairs];
+        for (int p = 0; p < pairs; p++) {
+            String target = rep[p * 2];
+            if (!target.isEmpty()) {
+                firstChars[p] = target.charAt(0);
+            }
+        }
+
+        StringBuilder buf = new StringBuilder(source.length() + 16);
+        int i = 0;
+        int len = source.length();
+        while (i < len) {
+            char c = source.charAt(i);
+            boolean isCandidate = false;
+            for (int p = 0; p < pairs; p++) {
+                if (!rep[p * 2].isEmpty() && c == firstChars[p]) {
+                    isCandidate = true;
+                    break;
+                }
+            }
+            if (!isCandidate) {
+                buf.append(c);
+                i++;
+                continue;
+            }
+
+            boolean matched = false;
+            for (int p = 0; p < pairs; p++) {
+                String target = rep[p * 2];
+                if (target.isEmpty()) continue;
+                if (c == firstChars[p] && source.startsWith(target, i)) {
+                    buf.append(rep[p * 2 + 1]);
+                    i += target.length();
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                buf.append(c);
+                i++;
+            }
+        }
+        return buf.toString();
     }
 
     public static String replace(String source, String os1, String ns1, String os2, String ns2) {

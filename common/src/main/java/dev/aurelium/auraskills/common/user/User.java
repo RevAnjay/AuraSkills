@@ -29,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -521,10 +522,10 @@ public abstract class User {
     }
 
     public UserState getState() {
-        Map<Skill, Integer> copiedLevels = new ConcurrentHashMap<>(skillLevels);
-        Map<Skill, Double> copiedXp = new ConcurrentHashMap<>(skillXp);
-        Map<String, StatModifier> copiedStatModifiers = new ConcurrentHashMap<>(userStats.getStatModifiers());
-        Map<String, TraitModifier> copiedTraitModifiers = new ConcurrentHashMap<>(userStats.getTraitModifiers());
+        Map<Skill, Integer> copiedLevels = new HashMap<>(skillLevels);
+        Map<Skill, Double> copiedXp = new HashMap<>(skillXp);
+        Map<String, StatModifier> copiedStatModifiers = new HashMap<>(userStats.getStatModifiers());
+        Map<String, TraitModifier> copiedTraitModifiers = new HashMap<>(userStats.getTraitModifiers());
         return new UserState(uuid, copiedLevels, copiedXp, copiedStatModifiers, copiedTraitModifiers, mana);
     }
 

@@ -21,6 +21,18 @@ import java.util.UUID;
 
 public class BukkitUser extends User {
 
+    private static class CachedPermission {
+        final boolean result;
+        final long timestamp;
+
+        CachedPermission(boolean result, long timestamp) {
+            this.result = result;
+            this.timestamp = timestamp;
+        }
+    }
+
+    private final java.util.Map<Skill, CachedPermission> skillPermissionCache = new java.util.concurrent.ConcurrentHashMap<>();
+
     @Nullable
     private final Player player;
     private final AuraSkills plugin;
@@ -164,7 +176,15 @@ public class BukkitUser extends User {
     public boolean hasSkillPermission(Skill skill) {
         if (player == null) return true;
 
-        return player.hasPermission("auraskills.skill." + skill.name().toLowerCase(Locale.ROOT));
+        long now = System.currentTimeMillis();
+        CachedPermission cached = skillPermissionCache.get(skill);
+        if (cached != null && (now - cached.timestamp) < 1000L) {
+            return cached.result;
+        }
+
+        boolean result = player.hasPermission("auraskills.skill." + skill.name().toLowerCase(Locale.ROOT));
+        skillPermissionCache.put(skill, new CachedPermission(result, now));
+        return result;
     }
 
     @Override

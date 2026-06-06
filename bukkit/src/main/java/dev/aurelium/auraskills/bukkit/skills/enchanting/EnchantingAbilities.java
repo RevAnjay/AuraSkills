@@ -99,11 +99,15 @@ public class EnchantingAbilities extends BukkitAbilityImpl {
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     User user = plugin.getUser(player);
 
-                    ItemStack item = player.getInventory().getItemInMainHand();
-                    if (!item.getEnchantments().isEmpty()) {
-                        if (failsChecks(player, ability)) continue;
+                    if (user.getAbilityLevel(ability) <= 0) {
+                        if (user.getStatModifier(modifierName) != null) {
+                            user.removeStatModifier(modifierName, true);
+                        }
+                        continue;
+                    }
 
-                        // Apply modifier
+                    ItemStack item = player.getInventory().getItemInMainHand();
+                    if (item != null && !item.getEnchantments().isEmpty()) {
                         double strengthPerType = getValue(ability, user);
                         int enchantCount = 0;
                         for (Enchantment enchantment : item.getEnchantments().keySet()) {
@@ -112,12 +116,32 @@ public class EnchantingAbilities extends BukkitAbilityImpl {
                             }
                             enchantCount++;
                         }
-                        if (enchantCount > 0) {
-                            StatModifier modifier = new StatModifier(modifierName, Stats.STRENGTH, strengthPerType * enchantCount, Operation.ADD);
+                        double modifierValue = strengthPerType * enchantCount;
+
+                        StatModifier currentModifier = user.getStatModifier(modifierName);
+                        if (currentModifier != null && currentModifier.value() == modifierValue) {
+                            continue;
+                        }
+
+                        if (failsChecks(player, ability)) {
+                            if (currentModifier != null) {
+                                user.removeStatModifier(modifierName, true);
+                            }
+                            continue;
+                        }
+
+                        if (modifierValue > 0.0) {
+                            StatModifier modifier = new StatModifier(modifierName, Stats.STRENGTH, modifierValue, Operation.ADD);
                             user.addStatModifier(modifier, false);
+                        } else {
+                            if (currentModifier != null) {
+                                user.removeStatModifier(modifierName, true);
+                            }
                         }
                     } else {
-                        user.removeStatModifier(modifierName);
+                        if (user.getStatModifier(modifierName) != null) {
+                            user.removeStatModifier(modifierName, true);
+                        }
                     }
                 }
             }

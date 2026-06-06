@@ -2,6 +2,7 @@ package dev.aurelium.auraskills.api.ability;
 
 import dev.aurelium.auraskills.api.AuraSkillsApi;
 import dev.aurelium.auraskills.api.AuraSkillsBukkit;
+import dev.aurelium.auraskills.api.user.SkillsUser;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 
@@ -37,13 +38,15 @@ public class AbilityContext {
         if (!ability.isEnabled()) {
             return true;
         }
-        if (api.getUser(player.getUniqueId()).getAbilityLevel(ability) <= 0) {
+        // Cache user lookup to avoid double api.getUser() call
+        SkillsUser user = api.getUser(player.getUniqueId());
+        if (user.getAbilityLevel(ability) <= 0) {
             return true;
         }
         if (AuraSkillsBukkit.get().getLocationManager().isPluginDisabled(player.getLocation(), player)) {
             return true;
         }
-        if (!api.getUser(player.getUniqueId()).hasSkillPermission(ability.getSkill())) {
+        if (!user.hasSkillPermission(ability.getSkill())) {
             return true;
         }
         if (api.getMainConfig().isDisabledInCreative()) {

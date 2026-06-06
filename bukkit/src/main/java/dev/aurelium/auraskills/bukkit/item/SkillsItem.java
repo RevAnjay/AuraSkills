@@ -39,16 +39,24 @@ public class SkillsItem {
 
     private final AuraSkills plugin;
     private final ItemStack item;
-    private final ItemMeta meta;
+    private ItemMeta meta;
 
     public SkillsItem(ItemStack item, AuraSkills plugin) {
         this.item = item.clone();
-        this.meta = this.item.getItemMeta();
         this.plugin = plugin;
     }
 
+    private ItemMeta getMeta() {
+        if (meta == null) {
+            meta = this.item.getItemMeta();
+        }
+        return meta;
+    }
+
     public ItemStack getItem() {
-        item.setItemMeta(meta);
+        if (meta != null) {
+            item.setItemMeta(meta);
+        }
         return item;
     }
 
@@ -57,6 +65,10 @@ public class SkillsItem {
     }
 
     public List<StatModifier> getStatModifiers(ModifierType type, boolean offhand) {
+        if (!item.hasItemMeta()) {
+            return Collections.emptyList();
+        }
+        getMeta();
         List<StatModifier> modifiers = new ArrayList<>();
         if (isContainerList(MetaType.MODIFIER, type)) {
             List<PersistentDataContainer> containers = getContainerList(MetaType.MODIFIER, type);
@@ -107,6 +119,10 @@ public class SkillsItem {
     }
 
     public List<TraitModifier> getTraitModifiers(ModifierType type, boolean offhand) {
+        if (!item.hasItemMeta()) {
+            return Collections.emptyList();
+        }
+        getMeta();
         List<TraitModifier> modifiers = new ArrayList<>();
         if (isContainerList(MetaType.TRAIT_MODIFIER, type)) {
             List<PersistentDataContainer> containers = getContainerList(MetaType.TRAIT_MODIFIER, type);
@@ -161,6 +177,7 @@ public class SkillsItem {
 
     // MetaType must be MODIFIER or TRAIT_MODIFIER
     public void addModifier(MetaType metaType, ModifierType modifierType, NamespaceIdentified identified, double value, Operation operation) {
+        getMeta();
         if (isTagContainer(metaType, modifierType)) {
             convertModifiersToContainerList();
         }
@@ -179,6 +196,7 @@ public class SkillsItem {
 
     // MetaType must be MODIFIER or TRAIT_MODIFIER
     public void removeModifier(MetaType metaType, ModifierType modifierType, NamespaceIdentified identified) {
+        getMeta();
         if (isTagContainer(metaType, modifierType)) {
             convertModifiersToContainerList();
         }
@@ -252,6 +270,7 @@ public class SkillsItem {
     }
 
     public void removeAll(MetaType metaType, ModifierType modifierType) {
+        getMeta();
         PersistentDataContainer parent = meta.getPersistentDataContainer();
         parent.remove(new NamespacedKey(plugin, getContainerName(metaType, modifierType)));
     }
@@ -261,6 +280,10 @@ public class SkillsItem {
     }
 
     public List<Multiplier> getMultipliers(ModifierType type, boolean offhand) {
+        if (!item.hasItemMeta()) {
+            return Collections.emptyList();
+        }
+        getMeta();
         PersistentDataContainer container = getContainer(MetaType.MULTIPLIER, type);
         List<Multiplier> multipliers = new ArrayList<>();
 
@@ -280,12 +303,14 @@ public class SkillsItem {
     }
 
     public void addMultiplier(ModifierType type, @Nullable Skill skill, double value) {
+        getMeta();
         PersistentDataContainer container = getContainer(MetaType.MULTIPLIER, type);
         container.set(getSkillKey(skill), PersistentDataType.DOUBLE, value);
         saveTagContainer(container, MetaType.MULTIPLIER, type);
     }
 
     public void removeMultiplier(ModifierType type, Skill skill) {
+        getMeta();
         PersistentDataContainer container = getContainer(MetaType.MULTIPLIER, type);
         container.remove(getSkillKey(skill));
         saveTagContainer(container, MetaType.MULTIPLIER, type);
@@ -293,6 +318,10 @@ public class SkillsItem {
     }
 
     public Map<Skill, Integer> getRequirements(ModifierType type) {
+        if (!item.hasItemMeta()) {
+            return Collections.emptyMap();
+        }
+        getMeta();
         PersistentDataContainer container = getContainer(MetaType.REQUIREMENT, type);
         Map<Skill, Integer> requirements = new ConcurrentHashMap<>();
 
@@ -311,6 +340,7 @@ public class SkillsItem {
     }
 
     public void addRequirement(ModifierType type, Skill skill, int level) {
+        getMeta();
         PersistentDataContainer container = getContainer(MetaType.REQUIREMENT, type);
         NamespacedKey key = new NamespacedKey(plugin, skill.getId().toString());
         container.set(key, PersistentDataType.INTEGER, level);
@@ -318,6 +348,7 @@ public class SkillsItem {
     }
 
     public void removeRequirement(ModifierType type, Skill skill) {
+        getMeta();
         PersistentDataContainer container = getContainer(MetaType.REQUIREMENT, type);
         NamespacedKey key = new NamespacedKey(plugin, skill.getId().toString());
         container.remove(key);
@@ -326,12 +357,14 @@ public class SkillsItem {
     }
 
     public void addIgnore() {
+        getMeta();
         PersistentDataContainer container = meta.getPersistentDataContainer();
         NamespacedKey key = new NamespacedKey(plugin, ManaAbilityProvider.IGNORE_INTERACT_KEY);
         container.set(key, PersistentDataType.BYTE, (byte) 1);
     }
 
     public void removeIgnore() {
+        getMeta();
         PersistentDataContainer container = meta.getPersistentDataContainer();
         NamespacedKey key = new NamespacedKey(plugin, ManaAbilityProvider.IGNORE_INTERACT_KEY);
         container.remove(key);
@@ -388,7 +421,7 @@ public class SkillsItem {
             }
         }
         // Check requirements on item
-        for (Map.Entry<Skill, Integer> entry : getRequirements(type).entrySet()) {
+        for (Map.Entry<Skill, Integer> entry : itemRequirements.entrySet()) {
             if (user.getSkillLevel(entry.getKey()) < entry.getValue()) {
                 return false;
             }
@@ -407,6 +440,7 @@ public class SkillsItem {
     }
 
     public void addModifierLore(ModifierType type, NamespaceIdentified identified, double value, Operation operation, Locale locale) {
+        getMeta();
         List<String> lore;
         if (meta.getLore() != null) {
             if (!meta.getLore().isEmpty()) lore = meta.getLore();
@@ -458,12 +492,14 @@ public class SkillsItem {
     }
 
     public void removeModifierLore(Stat stat, Locale locale) {
+        getMeta();
         List<String> lore = meta.getLore();
         if (lore != null && !lore.isEmpty()) lore.removeIf(line -> line.contains(stat.getDisplayName(locale)));
         meta.setLore(lore);
     }
 
     public void addMultiplierLore(ModifierType type, Skill skill, double value, Locale locale) {
+        getMeta();
         List<String> lore;
         if (meta.getLore() != null) {
             if (!meta.getLore().isEmpty()) {
@@ -504,6 +540,7 @@ public class SkillsItem {
     }
 
     public void addRequirementLore(ModifierType type, Skill skill, int level, Locale locale) {
+        getMeta();
         String text = TextUtil.replace(plugin.getMsg(CommandMessage.valueOf(type.name() + "_REQUIREMENT_ADD_LORE"), locale), "{skill}", skill.getDisplayName(locale), "{level}", String.valueOf(level));
         List<String> lore;
         if (meta.hasLore()) lore = meta.getLore();
@@ -515,6 +552,7 @@ public class SkillsItem {
     }
 
     public void removeRequirementLore(Skill skill) {
+        getMeta();
         List<String> lore = meta.getLore();
         if (lore != null) {
             for (int i = 0; i < lore.size(); i++) {

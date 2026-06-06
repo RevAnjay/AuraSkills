@@ -22,8 +22,8 @@ public class BukkitRegionManager extends RegionManager {
     }
 
     public boolean isPlacedBlock(Block block) {
-        int chunkX = block.getChunk().getX();
-        int chunkZ = block.getChunk().getZ();
+        int chunkX = block.getX() >> 4;
+        int chunkZ = block.getZ() >> 4;
 
         int regionX = (int) Math.floor((double) chunkX / 32.0);
         int regionZ = (int) Math.floor((double) chunkZ / 32.0);
@@ -76,8 +76,10 @@ public class BukkitRegionManager extends RegionManager {
         plugin.getScheduler().executeAsync(() -> {
             Region region = getRegionFromBlock(block);
             if (region == null) {
-                int regionX = (int) Math.floor((double) block.getChunk().getX() / 32.0);
-                int regionZ = (int) Math.floor((double) block.getChunk().getZ() / 32.0);
+                int chunkX = block.getX() >> 4;
+                int chunkZ = block.getZ() >> 4;
+                int regionX = (int) Math.floor((double) chunkX / 32.0);
+                int regionZ = (int) Math.floor((double) chunkZ / 32.0);
                 region = new Region(block.getWorld().getName(), regionX, regionZ);
 
                 RegionCoordinate regionCoordinate = new RegionCoordinate(block.getWorld().getName(), regionX, regionZ);
@@ -89,8 +91,10 @@ public class BukkitRegionManager extends RegionManager {
     }
 
     private void addToRegion(Block block, Region region) {
-        byte regionChunkX = (byte) (block.getChunk().getX() - region.getX() * 32);
-        byte regionChunkZ = (byte) (block.getChunk().getZ() - region.getZ() * 32);
+        int chunkX = block.getX() >> 4;
+        int chunkZ = block.getZ() >> 4;
+        byte regionChunkX = (byte) (chunkX - region.getX() * 32);
+        byte regionChunkZ = (byte) (chunkZ - region.getZ() * 32);
         ChunkData chunkData = region.getChunkData(new ChunkCoordinate(regionChunkX, regionChunkZ));
         // Create chunk data if it does not exist
         if (chunkData == null) {
@@ -103,8 +107,10 @@ public class BukkitRegionManager extends RegionManager {
     public void removePlacedBlock(Block block) {
         Region region = getRegionFromBlock(block);
         if (region != null) {
-            byte regionChunkX = (byte) (block.getChunk().getX() - region.getX() * 32);
-            byte regionChunkZ = (byte) (block.getChunk().getZ() - region.getZ() * 32);
+            int chunkX = block.getX() >> 4;
+            int chunkZ = block.getZ() >> 4;
+            byte regionChunkX = (byte) (chunkX - region.getX() * 32);
+            byte regionChunkZ = (byte) (chunkZ - region.getZ() * 32);
             ChunkData chunkData = region.getChunkData(new ChunkCoordinate(regionChunkX, regionChunkZ));
             if (chunkData != null) {
                 chunkData.removePlacedBlock(new BlockPosition(block.getX(), block.getY(), block.getZ()));
@@ -114,8 +120,8 @@ public class BukkitRegionManager extends RegionManager {
 
     @Nullable
     private Region getRegionFromBlock(Block block) {
-        int chunkX = block.getChunk().getX();
-        int chunkZ = block.getChunk().getZ();
+        int chunkX = block.getX() >> 4;
+        int chunkZ = block.getZ() >> 4;
 
         int regionX = (int) Math.floor((double) chunkX / 32.0);
         int regionZ = (int) Math.floor((double) chunkZ / 32.0);

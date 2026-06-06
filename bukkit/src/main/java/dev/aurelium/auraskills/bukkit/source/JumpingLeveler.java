@@ -28,6 +28,11 @@ public class JumpingLeveler extends SourceLeveler {
     @SuppressWarnings("deprecation")
     public void onJump(PlayerMoveEvent event) {
         if (disabled()) return;
+        
+        if (event.getFrom().getY() == event.getTo().getY()) {
+            return;
+        }
+
         Player player = event.getPlayer();
 
         handleJump(player, event);
@@ -45,16 +50,19 @@ public class JumpingLeveler extends SourceLeveler {
             return;
         }
 
+        if (!prevPlayersOnGround.contains(player.getUniqueId()) || player.getLocation().getBlock().getType() == Material.LADDER) {
+            return;
+        }
+
         double jumpVelocity = 0.42F;
-        if (CompatUtil.hasEffect(player, Set.of("jump", "jump_boost"))) {
-            PotionEffect effect = CompatUtil.getEffect(player, Set.of("jump", "jump_boost"));
+        org.bukkit.potion.PotionEffectType jumpBoostType = CompatUtil.jumpBoost();
+        if (jumpBoostType != null && player.hasPotionEffect(jumpBoostType)) {
+            PotionEffect effect = player.getPotionEffect(jumpBoostType);
             if (effect != null) {
                 jumpVelocity += ((float) (effect.getAmplifier() + 1) * 0.1F);
             }
         }
-        if (player.getLocation().getBlock().getType() == Material.LADDER || !prevPlayersOnGround.contains(player.getUniqueId())) {
-            return;
-        }
+
         if (player.isOnGround() || Double.compare(player.getVelocity().getY(), jumpVelocity) != 0) {
             return;
         }

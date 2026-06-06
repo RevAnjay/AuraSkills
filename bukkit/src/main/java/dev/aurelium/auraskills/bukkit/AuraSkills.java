@@ -289,6 +289,14 @@ public class AuraSkills extends JavaPlugin implements AuraSkillsPlugin {
             SkillsLoadEvent event = new SkillsLoadEvent(skillManager.getSkillValues());
             Bukkit.getPluginManager().callEvent(event);
             scheduler.executeAsync(() -> {
+                try {
+                    Class.forName("net.kyori.adventure.platform.bukkit.BukkitComponentSerializer");
+                    Class.forName("net.kyori.adventure.text.serializer.gson.GsonComponentSerializer");
+                    Class.forName("net.kyori.adventure.platform.facet.FacetComponentFlattener");
+                    net.kyori.adventure.text.Component dummy = net.kyori.adventure.text.Component.text("warmup");
+                    net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson().serialize(dummy);
+                } catch (Throwable ignored) {
+                }
                 leaderboardManager.updateLeaderboards(); // Immediately update leaderboards
             });
             // Start other timer tasks

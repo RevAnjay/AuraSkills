@@ -2,6 +2,7 @@ package dev.aurelium.auraskills.bukkit.commands;
 
 import dev.aurelium.auraskills.bukkit.AuraSkills;
 import dev.aurelium.auraskills.bukkit.hooks.HologramsHook;
+import dev.aurelium.auraskills.bukkit.hooks.PacketEventsHook;
 import dev.aurelium.auraskills.bukkit.source.BlockLeveler;
 import dev.aurelium.auraskills.bukkit.trait.AnvilDiscountTrait;
 import dev.aurelium.auraskills.bukkit.trait.DamageReductionTrait;
@@ -46,6 +47,10 @@ public class ReloadExecutor {
         plugin.getMenuFileManager().generateDefaultFiles();
         plugin.getMenuFileManager().loadMenus();
         plugin.getUiProvider().getActionBarManager().resetActionBars();
+        // Clear PacketEventsHook pending counters on reload
+        if (plugin.getHookManager().isRegistered(PacketEventsHook.class)) {
+            plugin.getHookManager().getHook(PacketEventsHook.class).cleanup();
+        }
         plugin.getAntiAfkManager().reload();
         if (plugin.getHookManager().isRegistered(HologramsHook.class)) {
             plugin.getHookManager().getHook(HologramsHook.class).loadConfig();

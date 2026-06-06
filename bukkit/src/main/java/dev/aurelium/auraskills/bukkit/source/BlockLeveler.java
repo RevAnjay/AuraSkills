@@ -36,6 +36,9 @@ public class BlockLeveler extends SourceLeveler {
 
     private final BlockLevelerHelper helper;
     private final Map<UniqueBlock, SkillSource<BlockXpSource>> sourceCache;
+    private final SkillSource<BlockXpSource> NO_SOURCE = new SkillSource<>(null, null);
+    private final Set<Material> materialsWithStates = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private boolean isMaterialsWithStatesInitialized = false;
 
     private final Set<Material> collectShearBlocks = Set.of(
             Material.BEEHIVE,
@@ -57,8 +60,35 @@ public class BlockLeveler extends SourceLeveler {
         this.sourceCache = new ConcurrentHashMap<>();
     }
 
+    private void populateMaterialsWithStates() {
+        materialsWithStates.clear();
+        isMaterialsWithStatesInitialized = true;
+        try {
+            List<SkillSource<BlockXpSource>> sources = plugin.getSkillManager().getSourcesOfType(BlockXpSource.class);
+            if (sources == null) return;
+            for (SkillSource<BlockXpSource> entry : sources) {
+                if (entry == null) continue;
+                BlockXpSource source = entry.source();
+                if (source == null) continue;
+                if (source.getStates() != null && source.getStates().length > 0) {
+                    for (String blockName : source.getBlocks()) {
+                        if (blockName == null) continue;
+                        try {
+                            Material material = Material.valueOf(blockName.toUpperCase(Locale.ROOT));
+                            materialsWithStates.add(material);
+                        } catch (IllegalArgumentException ignored) {
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
     public void clearSourceCache() {
         this.sourceCache.clear();
+        this.materialsWithStates.clear();
+        this.isMaterialsWithStatesInitialized = false;
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -68,10 +98,10 @@ public class BlockLeveler extends SourceLeveler {
         Player player = event.getPlayer();
         Block block = event.getBlock();
 
-        handleBreak(player, block, event, trait -> event.isDropItems() ? trait.getUniqueDrops(block, player) : Collections.emptySet());
+        handleBreak(player, block, event, trait -> () -> event.isDropItems() ? trait.getUniqueDrops(block, player) : Collections.emptySet());
     }
 
-    public void handleBreak(Player player, Block block, Cancellable event, Function<GatheringLuckTraits, Set<ItemStack>> dropFunction) {
+    public void handleBreak(Player player, Block block, Cancellable event, Function<GatheringLuckTraits, java.util.function.Supplier<Set<ItemStack>>> dropFunction) {
         User user = plugin.getUser(player);
 
         SkillSource<BlockXpSource> skillSource = getSource(block, BlockXpSource.BlockTriggers.BREAK);
@@ -109,9 +139,6 @@ public class BlockLeveler extends SourceLeveler {
 
         Block block = event.getClickedBlock();
         if (block == null) return;
-        // Skip in the case the block was fertilized or filled.
-        // This can be cause by either a player or dispenser.
-        if (hasSkippableMeta(block, event)) return;
 
         boolean collecting = false;
         SkillSource<BlockXpSource> skillSource = getSource(block, BlockXpSource.BlockTriggers.INTERACT);
@@ -121,6 +148,10 @@ public class BlockLeveler extends SourceLeveler {
 
             if (skillSource == null) return;
         }
+
+        // Skip in the case the block was fertilized or filled.
+        // This can be cause by either a player or dispenser.
+        if (hasSkippableMeta(block, event)) return;
 
         if (collecting) {
             ItemStack item = event.getItem();
@@ -218,10 +249,10 @@ public class BlockLeveler extends SourceLeveler {
     }
 
     private void applyBlockLuck(Skill skill, Player player, User user, Block block, XpSource source) {
-        applyBlockLuck(skill, player, user, block, source, trait -> trait.getUniqueDrops(block, player));
+        applyBlockLuck(skill, player, user, block, source, trait -> () -> trait.getUniqueDrops(block, player));
     }
 
-    private void applyBlockLuck(Skill skill, Player player, User user, Block block, XpSource source, Function<GatheringLuckTraits, Set<ItemStack>> dropFunction) {
+    private void applyBlockLuck(Skill skill, Player player, User user, Block block, XpSource source, Function<GatheringLuckTraits, java.util.function.Supplier<Set<ItemStack>>> dropFunction) {
         // Don't drop extra for silk touch + ores
         ItemStack tool = player.getInventory().getItemInMainHand();
         if (tool.getEnchantmentLevel(Enchantment.SILK_TOUCH) > 0 && plugin.getAbilityManager().getAbilityImpl(MiningAbilities.class).dropsMineralDirectly(block)) {
@@ -250,11 +281,20 @@ public class BlockLeveler extends SourceLeveler {
             return null;
         }
 
-        var cacheKey = new UniqueBlock(block.getType(), block.getBlockData().getAsString(true), trigger);
+        if (!isMaterialsWithStatesInitialized) {
+            populateMaterialsWithStates();
+        }
+
+        BlockData blockData = null;
+        if (materialsWithStates.contains(block.getType())) {
+            blockData = block.getBlockData();
+        }
+
+        var cacheKey = new UniqueBlock(block.getType(), blockData, trigger);
         SkillSource<BlockXpSource> cachedSource = sourceCache.get(cacheKey);
         // Cache hit
         if (cachedSource != null) {
-            return cachedSource;
+            return cachedSource == NO_SOURCE ? null : cachedSource;
         }
 
         List<SkillSource<BlockXpSource>> sources = plugin.getSkillManager().getSourcesOfType(BlockXpSource.class);
@@ -277,6 +317,7 @@ public class BlockLeveler extends SourceLeveler {
             sourceCache.put(cacheKey, entry);
             return entry;
         }
+        sourceCache.put(cacheKey, NO_SOURCE);
         return null;
     }
 
@@ -420,7 +461,7 @@ public class BlockLeveler extends SourceLeveler {
         return value;
     }
 
-    public record UniqueBlock(Material material, String blockData, BlockTriggers trigger) {
+    public record UniqueBlock(Material material, BlockData blockData, BlockTriggers trigger) {
 
     }
 

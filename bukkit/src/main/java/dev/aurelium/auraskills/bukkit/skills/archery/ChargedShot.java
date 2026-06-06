@@ -59,6 +59,13 @@ public class ChargedShot extends ManaAbilityProvider {
 
     @EventHandler
     public void onToggle(PlayerInteractEvent event) {
+        if (event.getAction() != Action.LEFT_CLICK_BLOCK && event.getAction() != Action.LEFT_CLICK_AIR) {
+            return;
+        }
+        ItemStack item = event.getItem();
+        if (item == null || item.getType() != Material.BOW) return;
+        if (shouldIgnoreItem(item)) return;
+
         if (isDisabled()) return;
 
         Player player = event.getPlayer();
@@ -69,25 +76,19 @@ public class ChargedShot extends ManaAbilityProvider {
             return;
         }
 
-        ItemStack item = event.getItem();
-        if (item == null) return;
-        if (item.getType() != Material.BOW) return;
-        if (shouldIgnoreItem(item)) return;
-        if (event.getAction() == Action.LEFT_CLICK_BLOCK || event.getAction() == Action.LEFT_CLICK_AIR) {
-            User user = plugin.getUser(player);
+        User user = plugin.getUser(player);
 
-            Locale locale = user.getLocale();
-            AbilityData abilityData = user.getAbilityData(manaAbility);
-            if (abilityData.getInt("toggle_cooldown") == 0) {
-                if (!abilityData.getBoolean("enabled")) { // Toggle on
-                    abilityData.setData("enabled", true);
-                    plugin.getAbilityManager().sendMessage(player, plugin.getMsg(ManaAbilityMessage.CHARGED_SHOT_ENABLE, locale));
-                } else { // Toggle off
-                    abilityData.setData("enabled", false);
-                    plugin.getAbilityManager().sendMessage(player, plugin.getMsg(ManaAbilityMessage.CHARGED_SHOT_DISABLE, locale));
-                }
-                abilityData.setData("toggle_cooldown", 8);
+        Locale locale = user.getLocale();
+        AbilityData abilityData = user.getAbilityData(manaAbility);
+        if (abilityData.getInt("toggle_cooldown") == 0) {
+            if (!abilityData.getBoolean("enabled")) { // Toggle on
+                abilityData.setData("enabled", true);
+                plugin.getAbilityManager().sendMessage(player, plugin.getMsg(ManaAbilityMessage.CHARGED_SHOT_ENABLE, locale));
+            } else { // Toggle off
+                abilityData.setData("enabled", false);
+                plugin.getAbilityManager().sendMessage(player, plugin.getMsg(ManaAbilityMessage.CHARGED_SHOT_DISABLE, locale));
             }
+            abilityData.setData("toggle_cooldown", 8);
         }
     }
 

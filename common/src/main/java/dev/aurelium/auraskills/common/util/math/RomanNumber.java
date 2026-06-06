@@ -8,6 +8,8 @@ import java.util.TreeMap;
 public class RomanNumber {
 
     private static final TreeMap<Integer, String> map = new TreeMap<>();
+    private static final String[] CACHE = new String[101];
+    private static final String[] STR_CACHE = new String[101];
 
     static {
         map.put(1000000000, "Ⓜ");
@@ -41,12 +43,23 @@ public class RomanNumber {
         map.put(5, "V");
         map.put(4, "IV");
         map.put(1, "I");
+
+        for (int i = 1; i <= 100; i++) {
+            CACHE[i] = toRomanAlways(i);
+            STR_CACHE[i] = String.valueOf(i);
+        }
     }
 
     public static String toRoman(int number, AuraSkillsPlugin plugin) {
         if (plugin.configBoolean(Option.ENABLE_ROMAN_NUMERALS)) {
+            if (number >= 1 && number <= 100) {
+                return CACHE[number];
+            }
             return toRomanAlways(number);
         } else {
+            if (number >= 1 && number <= 100) {
+                return STR_CACHE[number];
+            }
             return String.valueOf(number);
         }
     }

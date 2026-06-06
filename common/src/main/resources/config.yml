@@ -40,6 +40,8 @@ hooks:
   PlaceholderAPI:
     enabled: true
   ProtocolLib:
+    enabled: false
+  PacketEvents:
     enabled: true
   Slimefun:
     enabled: true

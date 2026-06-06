@@ -321,23 +321,47 @@ public class AlchemyAbilities extends BukkitAbilityImpl {
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     User user = plugin.getUser(player);
 
+                    if (user.getAbilityLevel(ability) <= 0) {
+                        if (user.getStatModifier("AbilityModifier-WiseEffect") != null) {
+                            user.removeStatModifier("AbilityModifier-WiseEffect", true);
+                        }
+                        continue;
+                    }
+
                     if (!player.getActivePotionEffects().isEmpty()) {
-                        if (failsChecks(player, ability)) continue;
                         // Get unique active potion effects
                         Set<PotionEffectType> uniqueTypesSet = new HashSet<>();
                         for (PotionEffect potionEffect : player.getActivePotionEffects()) {
                             uniqueTypesSet.add(potionEffect.getType());
                         }
                         int uniqueTypes = uniqueTypesSet.size();
-                        // Apply modifier
                         double wisdomPerType = getValue(ability, user);
                         double modifierValue = wisdomPerType * uniqueTypes;
+
+                        StatModifier currentModifier = user.getStatModifier("AbilityModifier-WiseEffect");
+                        if (currentModifier != null && currentModifier.value() == modifierValue) {
+                            continue;
+                        }
+
+                        if (failsChecks(player, ability)) {
+                            if (currentModifier != null) {
+                                user.removeStatModifier("AbilityModifier-WiseEffect", true);
+                            }
+                            continue;
+                        }
+
                         if (modifierValue > 0.0) {
                             StatModifier modifier = new StatModifier("AbilityModifier-WiseEffect", Stats.WISDOM, modifierValue, Operation.ADD);
                             user.addStatModifier(modifier, true);
+                        } else {
+                            if (currentModifier != null) {
+                                user.removeStatModifier("AbilityModifier-WiseEffect", true);
+                            }
                         }
                     } else {
-                        user.removeStatModifier("AbilityModifier-WiseEffect", true);
+                        if (user.getStatModifier("AbilityModifier-WiseEffect") != null) {
+                            user.removeStatModifier("AbilityModifier-WiseEffect", true);
+                        }
                     }
                 }
             }

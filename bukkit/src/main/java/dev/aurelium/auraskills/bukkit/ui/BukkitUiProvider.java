@@ -2,6 +2,7 @@ package dev.aurelium.auraskills.bukkit.ui;
 
 import dev.aurelium.auraskills.api.skill.Skill;
 import dev.aurelium.auraskills.bukkit.AuraSkills;
+import dev.aurelium.auraskills.bukkit.hooks.PacketEventsHook;
 import dev.aurelium.auraskills.bukkit.hooks.ProtocolLibHook;
 import dev.aurelium.auraskills.bukkit.user.BukkitUser;
 import dev.aurelium.auraskills.common.ui.ActionBarManager;
@@ -56,7 +57,10 @@ public class BukkitUiProvider implements UiProvider {
         Player player = ((BukkitUser) user).getPlayer();
         if (player == null) return;
 
-        if (plugin.getHookManager().isRegistered(ProtocolLibHook.class)) {
+        if (plugin.getHookManager().isRegistered(PacketEventsHook.class)) {
+            PacketEventsHook hook = plugin.getHookManager().getHook(PacketEventsHook.class);
+            hook.sendActionBar(player, message);
+        } else if (plugin.getHookManager().isRegistered(ProtocolLibHook.class)) {
             ProtocolLibHook hook = plugin.getHookManager().getHook(ProtocolLibHook.class);
             hook.sendActionBar(player, message);
         } else {

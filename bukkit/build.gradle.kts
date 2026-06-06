@@ -56,6 +56,7 @@ dependencies {
         exclude("org.bukkit", "bukkit")
     }
     compileOnly("com.comphenix.protocol:ProtocolLib:5.1.0")
+    compileOnly("com.github.retrooper:packetevents-spigot:2.11.1")
     compileOnly("net.luckperms:api:5.4")
     compileOnly("com.github.TownyAdvanced:Towny:0.98.3.6")
     compileOnly("com.github.Slimefun:Slimefun4:RC-37")
@@ -91,7 +92,10 @@ tasks {
         relocate("de.tr7zw.changeme.nbtapi", "dev.aurelium.auraskills.nbtapi")
         relocate("org.bstats", "dev.aurelium.auraskills.bstats")
         relocate("com.ezylang.evalex", "dev.aurelium.auraskills.evalex")
-        relocate("net.kyori", "dev.aurelium.auraskills.kyori")
+        relocate("net.kyori", "dev.aurelium.auraskills.kyori") {
+            // Exclude PacketEventsHook from kyori shading - it needs to use PacketEvents' bundled Adventure
+            exclude("dev.aurelium.auraskills.bukkit.hooks.PacketEventsHook")
+        }
         relocate("com.zaxxer.hikari", "dev.aurelium.auraskills.hikari")
         relocate("dev.aurelium.slate", "dev.aurelium.auraskills.slate")
         relocate("org.spongepowered.configurate", "dev.aurelium.auraskills.configurate")

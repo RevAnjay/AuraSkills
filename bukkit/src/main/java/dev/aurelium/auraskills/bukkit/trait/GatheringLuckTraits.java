@@ -52,7 +52,7 @@ public class GatheringLuckTraits extends TraitImpl {
         return 0;
     }
 
-    public void apply(Trait trait, Block block, Player player, User user, XpSource source, Set<ItemStack> drops) {
+    public void apply(Trait trait, Block block, Player player, User user, XpSource source, java.util.function.Supplier<Set<ItemStack>> dropsSupplier) {
         if (!trait.isEnabled()) return;
         // Get the skill corresponding to the block trait
         Skill skill = getSkill(trait);
@@ -66,10 +66,18 @@ public class GatheringLuckTraits extends TraitImpl {
 
         if (failsChecks(player, skill)) return;
 
-        for (ItemStack item : drops) {
-            int numExtra = rollExtraDrops(user, trait);
-            if (numExtra == 0) continue;
+        double value = user.getEffectiveTraitLevel(trait);
+        if (value == 0.0) return;
 
+        int guaranteed = getGuaranteedExtra(value);
+        double chance = (value - guaranteed * 100) / 100;
+        int numExtra = guaranteed + (random.nextDouble() < chance ? 1 : 0);
+        if (numExtra == 0) return;
+
+        Set<ItemStack> drops = dropsSupplier.get();
+        if (drops == null || drops.isEmpty()) return;
+
+        for (ItemStack item : drops) {
             ItemStack droppedItem = item.clone();
             droppedItem.setAmount(numExtra);
 

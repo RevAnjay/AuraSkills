@@ -18,6 +18,8 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Set;
@@ -55,7 +57,7 @@ public class ItemStateManager {
         UserEquipment equipment = user.getEquipment();
 
         ItemStack beforeItem = equipment.getSlot(slot); // The stored item that we know the user had before the item change
-        if (!force && afterItem.equals(beforeItem)) { // The item stayed the same, don't change anything
+        if (!force && isSimilarIgnoreDamage(afterItem, beforeItem)) { // The item stayed the same, don't change anything
             return Set.of();
         }
 
@@ -166,6 +168,31 @@ public class ItemStateManager {
             case HAND, OFF_HAND -> ModifierType.ITEM;
             default -> ModifierType.ARMOR;
         };
+    }
+
+    private boolean isSimilarIgnoreDamage(ItemStack stack1, ItemStack stack2) {
+        if (stack1 == stack2) return true;
+        if (stack1 == null || stack2 == null) return false;
+        if (stack1.isSimilar(stack2)) return true;
+        if (stack1.getType() != stack2.getType()) return false;
+
+        boolean hasMeta1 = stack1.hasItemMeta();
+        boolean hasMeta2 = stack2.hasItemMeta();
+        if (!hasMeta1 && !hasMeta2) return true;
+        if (hasMeta1 != hasMeta2) return false;
+
+        ItemMeta meta1 = stack1.getItemMeta();
+        ItemMeta meta2 = stack2.getItemMeta();
+        if (meta1 == null || meta2 == null) return false;
+        if (meta1 instanceof Damageable d1 && meta2 instanceof Damageable d2) {
+            if (d1.getDamage() == d2.getDamage()) {
+                return meta1.equals(meta2);
+            }
+            d1.setDamage(0);
+            d2.setDamage(0);
+            return meta1.equals(meta2);
+        }
+        return meta1.equals(meta2);
     }
 
     private record Result(ItemStack item, Set<ReloadableIdentifier> toReload) {
