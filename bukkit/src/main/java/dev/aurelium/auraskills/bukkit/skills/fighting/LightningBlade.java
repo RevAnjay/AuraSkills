@@ -94,17 +94,21 @@ public class LightningBlade extends ReadiedManaAbility {
         if (event.isCancelled()) return;
 
         if (!(event.getDamager() instanceof Player player)) return;
+        User user = plugin.getUser(player);
+        if (user == null || user.getManaAbilityLevel(manaAbility) <= 0) return;
+        if (isActivated(user)) {
+            return;
+        }
+        if (!isReady(user)) {
+            return;
+        }
+
         if (failsChecks(player)) return;
         //If player used sword
         if (!isHoldingMaterial(player)) return;
         if (!(event.getEntity() instanceof LivingEntity)) return;
         DamageCause cause = event.getCause();
         if (cause == DamageCause.ENTITY_SWEEP_ATTACK || cause == DamageCause.THORNS) return; // Ignore sweeping attacks
-        // Checks if already activated
-        User user = plugin.getUser(player);
-        if (isActivated(user)) {
-            return;
-        }
         // Checks if ready
         checkActivation(player);
     }

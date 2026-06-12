@@ -11,8 +11,11 @@ import dev.aurelium.auraskills.common.source.Source;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class BlockSource extends Source implements BlockXpSource {
+
+    private final Map<String, Double> stateMultiplierCache = new ConcurrentHashMap<>();
 
     public static final int DEFAULT_MAX_BLOCKS = 100;
 
@@ -76,14 +79,15 @@ public class BlockSource extends Source implements BlockXpSource {
     @Override
     public double getStateMultiplier(String stateKey, Object stateValue) {
         String replaced = stateMultiplier.replace(stateKey, stateValue.toString());
-        // Create and evaluate expression
-        Expression expression = new Expression(replaced);
-        try {
-            return expression.evaluate().getNumberValue().doubleValue();
-        } catch (EvaluationException | ParseException e) {
-            e.printStackTrace();
-            return 1;
-        }
+        return stateMultiplierCache.computeIfAbsent(replaced, exprStr -> {
+            try {
+                Expression expression = new Expression(exprStr);
+                return expression.evaluate().getNumberValue().doubleValue();
+            } catch (EvaluationException | ParseException e) {
+                e.printStackTrace();
+                return 1.0;
+            }
+        });
     }
 
     @Override

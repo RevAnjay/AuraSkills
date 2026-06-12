@@ -18,6 +18,7 @@ import dev.aurelium.auraskills.bukkit.AuraSkills;
 import dev.aurelium.auraskills.bukkit.mana.ManaAbilityProvider;
 import dev.aurelium.auraskills.bukkit.requirement.GlobalRequirement;
 import dev.aurelium.auraskills.bukkit.requirement.Requirements;
+import dev.aurelium.auraskills.bukkit.util.PdcUtils;
 import dev.aurelium.auraskills.bukkit.util.VersionUtils;
 import dev.aurelium.auraskills.common.config.Option;
 import dev.aurelium.auraskills.common.message.type.CommandMessage;
@@ -67,6 +68,22 @@ public class SkillsItem {
     public List<StatModifier> getStatModifiers(ModifierType type, boolean offhand) {
         if (!item.hasItemMeta()) {
             return Collections.emptyList();
+        }
+        PersistentDataContainer pdc = PdcUtils.getPdc(item);
+        if (pdc != null) {
+            String name = getContainerName(MetaType.MODIFIER, type);
+            NamespacedKey metaKey = new NamespacedKey(plugin, name);
+            boolean hasModifiers = false;
+            if (VersionUtils.isAtLeastVersion(20, 4)) {
+                hasModifiers = pdc.has(metaKey, PersistentDataType.LIST.dataContainers())
+                        || pdc.has(metaKey, PersistentDataType.TAG_CONTAINER);
+            } else {
+                hasModifiers = pdc.has(metaKey, PersistentDataType.TAG_CONTAINER_ARRAY)
+                        || pdc.has(metaKey, PersistentDataType.TAG_CONTAINER);
+            }
+            if (!hasModifiers) {
+                return Collections.emptyList();
+            }
         }
         getMeta();
         List<StatModifier> modifiers = new ArrayList<>();
@@ -121,6 +138,22 @@ public class SkillsItem {
     public List<TraitModifier> getTraitModifiers(ModifierType type, boolean offhand) {
         if (!item.hasItemMeta()) {
             return Collections.emptyList();
+        }
+        PersistentDataContainer pdc = PdcUtils.getPdc(item);
+        if (pdc != null) {
+            String name = getContainerName(MetaType.TRAIT_MODIFIER, type);
+            NamespacedKey metaKey = new NamespacedKey(plugin, name);
+            boolean hasModifiers = false;
+            if (VersionUtils.isAtLeastVersion(20, 4)) {
+                hasModifiers = pdc.has(metaKey, PersistentDataType.LIST.dataContainers())
+                        || pdc.has(metaKey, PersistentDataType.TAG_CONTAINER);
+            } else {
+                hasModifiers = pdc.has(metaKey, PersistentDataType.TAG_CONTAINER_ARRAY)
+                        || pdc.has(metaKey, PersistentDataType.TAG_CONTAINER);
+            }
+            if (!hasModifiers) {
+                return Collections.emptyList();
+            }
         }
         getMeta();
         List<TraitModifier> modifiers = new ArrayList<>();
@@ -283,6 +316,14 @@ public class SkillsItem {
         if (!item.hasItemMeta()) {
             return Collections.emptyList();
         }
+        PersistentDataContainer pdc = PdcUtils.getPdc(item);
+        if (pdc != null) {
+            String name = getContainerName(MetaType.MULTIPLIER, type);
+            NamespacedKey metaKey = new NamespacedKey(plugin, name);
+            if (!pdc.has(metaKey, PersistentDataType.TAG_CONTAINER)) {
+                return Collections.emptyList();
+            }
+        }
         getMeta();
         PersistentDataContainer container = getContainer(MetaType.MULTIPLIER, type);
         List<Multiplier> multipliers = new ArrayList<>();
@@ -320,6 +361,14 @@ public class SkillsItem {
     public Map<Skill, Integer> getRequirements(ModifierType type) {
         if (!item.hasItemMeta()) {
             return Collections.emptyMap();
+        }
+        PersistentDataContainer pdc = PdcUtils.getPdc(item);
+        if (pdc != null) {
+            String name = getContainerName(MetaType.REQUIREMENT, type);
+            NamespacedKey metaKey = new NamespacedKey(plugin, name);
+            if (!pdc.has(metaKey, PersistentDataType.TAG_CONTAINER)) {
+                return Collections.emptyMap();
+            }
         }
         getMeta();
         PersistentDataContainer container = getContainer(MetaType.REQUIREMENT, type);

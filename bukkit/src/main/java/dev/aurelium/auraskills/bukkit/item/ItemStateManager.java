@@ -173,7 +173,6 @@ public class ItemStateManager {
     private boolean isSimilarIgnoreDamage(ItemStack stack1, ItemStack stack2) {
         if (stack1 == stack2) return true;
         if (stack1 == null || stack2 == null) return false;
-        if (stack1.isSimilar(stack2)) return true;
         if (stack1.getType() != stack2.getType()) return false;
 
         boolean hasMeta1 = stack1.hasItemMeta();
@@ -183,14 +182,19 @@ public class ItemStateManager {
 
         ItemMeta meta1 = stack1.getItemMeta();
         ItemMeta meta2 = stack2.getItemMeta();
-        if (meta1 == null || meta2 == null) return false;
+        if (meta1 == null || meta2 == null) return meta1 == meta2;
+
         if (meta1 instanceof Damageable d1 && meta2 instanceof Damageable d2) {
-            if (d1.getDamage() == d2.getDamage()) {
-                return meta1.equals(meta2);
+            int damage1 = d1.getDamage();
+            int damage2 = d2.getDamage();
+            if (damage1 != damage2) {
+                d1.setDamage(0);
+                d2.setDamage(0);
+                boolean equals = meta1.equals(meta2);
+                d1.setDamage(damage1);
+                d2.setDamage(damage2);
+                return equals;
             }
-            d1.setDamage(0);
-            d2.setDamage(0);
-            return meta1.equals(meta2);
         }
         return meta1.equals(meta2);
     }

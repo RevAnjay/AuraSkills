@@ -83,6 +83,16 @@ public class Treecapitator extends ReadiedManaAbility {
     public void onBreak(BlockBreakEvent event) {
         if (isDisabled()) return;
         if (event.isCancelled()) return;
+
+        Player player = event.getPlayer();
+        User user = plugin.getUser(player);
+        if (user == null || user.getManaAbilityLevel(manaAbility) <= 0) return;
+
+        boolean active = isActivated(user);
+        if (!active && !isReady(user)) {
+            return;
+        }
+
         // Checks if block broken is log
         Block block = event.getBlock();
         if (plugin.getRegionManager().isPlacedBlock(block)) {
@@ -100,13 +110,9 @@ public class Treecapitator extends ReadiedManaAbility {
             return;
         }
         if (plugin.getSkillManager().hasTag(source, SourceTag.TRUNKS)) {
-            Player player = event.getPlayer();
-
             if (failsChecks(player)) return;
 
-            User user = plugin.getUser(player);
-
-            if (isActivated(user)) {
+            if (active) {
                 breakTree(player, user, block, source);
                 return;
             }
@@ -135,6 +141,13 @@ public class Treecapitator extends ReadiedManaAbility {
     }
 
     private void breakBlock(Player player, User user, Block block, TreecapitatorTree tree, AtomicInteger taskCount, Consumer<Integer> onComplete) {
+        ItemStack handItem = player.getInventory().getItemInMainHand();
+        if (!isHoldingMaterial(player, handItem)) {
+            tree.setMaxBlocks(0);
+            onComplete.accept(0);
+            return;
+        }
+
         if (tree.getBlocksBroken() > tree.getMaxBlocks()) {
             onComplete.accept(0);
             return;
@@ -142,13 +155,6 @@ public class Treecapitator extends ReadiedManaAbility {
 
         int brokenThisRun = 0;
         for (Block adjacentBlock : BlockFaceUtil.getSurroundingBlocks(block)) {
-            ItemStack handItem = player.getInventory().getItemInMainHand();
-            if (!isHoldingMaterial(player, handItem)) {
-                tree.setMaxBlocks(0);
-                onComplete.accept(brokenThisRun);
-                return;
-            }
-
             BlockXpSource adjSource = getSource(adjacentBlock);
             if (!plugin.getSkillManager().hasTag(adjSource, SourceTag.TREECAPITATOR_APPLICABLE))
                 continue; // Check block is leaf or trunk

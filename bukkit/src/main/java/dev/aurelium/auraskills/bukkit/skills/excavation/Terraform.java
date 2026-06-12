@@ -53,9 +53,17 @@ public class Terraform extends ReadiedManaAbility {
         if (event.isCancelled()) return;
 
         Player player = event.getPlayer();
-        Block block = event.getBlock();
+        User user = plugin.getUser(player);
+        if (user == null || user.getManaAbilityLevel(manaAbility) <= 0) return;
+
+        boolean active = isActivated(user);
+        if (!active && !isReady(user)) {
+            return;
+        }
 
         if (failsChecks(player)) return;
+
+        Block block = event.getBlock();
 
         if (block.hasMetadata("block-ignore")) { // Compatibility fix
             return;
@@ -65,7 +73,7 @@ public class Terraform extends ReadiedManaAbility {
             return;
         }
         if (!block.hasMetadata("AureliumSkills-Terraform") && event.getClass() == BlockBreakEvent.class) {
-            applyTerraform(player, plugin.getUser(player), block);
+            applyTerraform(player, user, block);
         }
     }
 

@@ -19,11 +19,14 @@ import org.bukkit.inventory.view.AnvilView;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class AnvilDiscountTrait extends TraitImpl {
 
     @Nullable
     private Expression formula;
+    private final Map<Double, Double> cache = new ConcurrentHashMap<>();
 
     AnvilDiscountTrait(AuraSkills plugin) {
         super(plugin, Traits.ANVIL_DISCOUNT);
@@ -90,21 +93,30 @@ public class AnvilDiscountTrait extends TraitImpl {
 
     public void resetFormula() {
         formula = null;
+        cache.clear();
     }
 
     // Gets the anvil discount from 0 (0% off) to 1 (100% off)
     private double getDiscount(double traitValue) {
-        try {
-            if (formula == null) {
-                formula = new Expression(Traits.ANVIL_DISCOUNT.optionString("formula"));
+        return cache.computeIfAbsent(traitValue, val -> {
+            try {
+                if (formula == null) {
+                    synchronized (this) {
+                        if (formula == null) {
+                            formula = new Expression(Traits.ANVIL_DISCOUNT.optionString("formula"));
+                        }
+                    }
+                }
+                Expression localFormula = formula;
+                synchronized (localFormula) {
+                    localFormula.with("value", val);
+                    return localFormula.evaluate().getNumberValue().doubleValue();
+                }
+            } catch (EvaluationException | ParseException | UnsupportedOperationException e) {
+                plugin.logger().warn("Failed to evaluate formula for trait auraskills/anvil_discount: " + e.getMessage());
             }
-            formula.with("value", traitValue);
-
-            return formula.evaluate().getNumberValue().doubleValue();
-        } catch (EvaluationException | ParseException | UnsupportedOperationException e) {
-            plugin.logger().warn("Failed to evaluate formula for trait auraskills/anvil_discount: " + e.getMessage());
-        }
-        return -1.0 * Math.pow(1.025, -1.0 * traitValue) + 1;
+            return -1.0 * Math.pow(1.025, -1.0 * val) + 1;
+        });
     }
 
 }

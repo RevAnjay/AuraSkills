@@ -19,6 +19,7 @@ import java.util.UUID;
 public class JumpingLeveler extends SourceLeveler {
 
     private final Set<UUID> prevPlayersOnGround = Sets.newConcurrentHashSet();
+    private final java.util.Map<UUID, Integer> jumpCounts = new java.util.concurrent.ConcurrentHashMap<>();
 
     public JumpingLeveler(AuraSkills plugin) {
         super(plugin, SourceTypes.JUMPING);
@@ -42,6 +43,13 @@ public class JumpingLeveler extends SourceLeveler {
         } else {
             prevPlayersOnGround.remove(player.getUniqueId());
         }
+    }
+
+    @EventHandler
+    public void onQuit(org.bukkit.event.player.PlayerQuitEvent event) {
+        UUID uuid = event.getPlayer().getUniqueId();
+        prevPlayersOnGround.remove(uuid);
+        jumpCounts.remove(uuid);
     }
 
     @SuppressWarnings("deprecation")
@@ -72,18 +80,17 @@ public class JumpingLeveler extends SourceLeveler {
         JumpingXpSource source = skillSource.source();
         Skill skill = skillSource.skill();
 
-        if (player.hasMetadata("skillsJumps")) {
-            player.setMetadata("skillsJumps", new FixedMetadataValue(plugin, player.getMetadata("skillsJumps").get(0).asInt() + 1));
-            if (player.getMetadata("skillsJumps").get(0).asInt() >= source.getInterval()) {
-
-                if (failsChecks(event, player, player.getLocation(), skill)) return;
-
-                plugin.getLevelManager().addXp(plugin.getUser(player), skill, source, source.getXp());
-
-                player.removeMetadata("skillsJumps", plugin);
+        UUID uuid = player.getUniqueId();
+        int jumps = jumpCounts.getOrDefault(uuid, 0) + 1;
+        if (jumps >= source.getInterval()) {
+            if (failsChecks(event, player, player.getLocation(), skill)) {
+                jumpCounts.put(uuid, jumps);
+                return;
             }
+            plugin.getLevelManager().addXp(plugin.getUser(player), skill, source, source.getXp());
+            jumpCounts.remove(uuid);
         } else {
-            player.setMetadata("skillsJumps", new FixedMetadataValue(plugin, 1));
+            jumpCounts.put(uuid, jumps);
         }
     }
 

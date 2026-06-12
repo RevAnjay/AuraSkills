@@ -12,6 +12,7 @@ import dev.aurelium.auraskills.bukkit.item.BukkitPotionType;
 import dev.aurelium.auraskills.bukkit.skills.agility.AgilityAbilities;
 import dev.aurelium.auraskills.bukkit.util.AttributeCompat;
 import dev.aurelium.auraskills.bukkit.util.CompatUtil;
+import dev.aurelium.auraskills.bukkit.util.PdcUtils;
 import dev.aurelium.auraskills.bukkit.util.PotionUtil;
 import dev.aurelium.auraskills.common.message.type.AbilityMessage;
 import dev.aurelium.auraskills.common.scheduler.TaskRunnable;
@@ -159,10 +160,12 @@ public class AlchemyAbilities extends BukkitAbilityImpl {
         if (failsChecks(player, ability)) return;
 
         ItemStack item = event.getItem();
-        if (item.getType() != Material.POTION || !(item.getItemMeta() instanceof PotionMeta meta)) return;
+        if (item.getType() != Material.POTION) return;
 
-        int durationBonus = item.getItemMeta().getPersistentDataContainer().getOrDefault(durationBonusKey, PersistentDataType.INTEGER, 0);
+        int durationBonus = PdcUtils.getOrDefault(item, durationBonusKey, PersistentDataType.INTEGER, 0);
         if (durationBonus <= 0) return;
+
+        if (!(item.getItemMeta() instanceof PotionMeta meta)) return;
 
         BukkitPotionType bukkitPotionType = new BukkitPotionType(meta);
         PotionType potionType = bukkitPotionType.getType();
@@ -328,10 +331,11 @@ public class AlchemyAbilities extends BukkitAbilityImpl {
                         continue;
                     }
 
-                    if (!player.getActivePotionEffects().isEmpty()) {
+                    Collection<PotionEffect> activeEffects = player.getActivePotionEffects();
+                    if (!activeEffects.isEmpty()) {
                         // Get unique active potion effects
                         Set<PotionEffectType> uniqueTypesSet = new HashSet<>();
-                        for (PotionEffect potionEffect : player.getActivePotionEffects()) {
+                        for (PotionEffect potionEffect : activeEffects) {
                             uniqueTypesSet.add(potionEffect.getType());
                         }
                         int uniqueTypes = uniqueTypesSet.size();

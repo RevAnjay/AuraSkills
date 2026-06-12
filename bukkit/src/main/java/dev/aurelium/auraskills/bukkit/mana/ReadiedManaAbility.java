@@ -124,8 +124,6 @@ public abstract class ReadiedManaAbility extends ManaAbilityProvider {
 
     @EventHandler
     public void onReady(PlayerInteractEvent event) {
-        if (isDisabled()) return;
-
         // Check action is valid
         boolean valid = false;
         for (Action action : actions) {
@@ -135,13 +133,17 @@ public abstract class ReadiedManaAbility extends ManaAbilityProvider {
             }
         }
         if (!valid) return;
-        // Check block exclusions
-        Block block = event.getClickedBlock();
+
         // Match sure material matches
         Player player = event.getPlayer();
         if (!isHoldingMaterial(player)) {
             return;
         }
+
+        if (isDisabled()) return;
+
+        // Check block exclusions
+        Block block = event.getClickedBlock();
         if (block != null) {
             if (isExcludedBlock(block)) return;
         }

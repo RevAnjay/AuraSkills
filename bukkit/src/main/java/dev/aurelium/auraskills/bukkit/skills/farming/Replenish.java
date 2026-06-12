@@ -44,8 +44,14 @@ public class Replenish extends ReadiedManaAbility {
 
         Player player = event.getPlayer();
         User user = plugin.getUser(player);
+        if (user == null || user.getManaAbilityLevel(manaAbility) <= 0) return;
 
-        if (isActivated(user)) {
+        boolean active = isActivated(user);
+        if (!active && !isReady(user)) {
+            return;
+        }
+
+        if (active) {
             applyReplenish(event);
         } else if (isHoldingMaterial(player) && checkActivation(player)) {
             applyReplenish(event);

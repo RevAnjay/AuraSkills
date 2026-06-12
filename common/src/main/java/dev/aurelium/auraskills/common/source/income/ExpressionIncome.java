@@ -22,18 +22,20 @@ public class ExpressionIncome implements SourceIncome {
 
     @Override
     public double getIncomeEarned(SkillsUser user, SourceValues sourceValues, Skill skill, double finalXp) {
-        // Set expression variables
-        expression.with("xp", finalXp)
-                .with("base_xp", sourceValues.getXp())
-                .with("level", user.getSkillLevel(skill))
-                .with("power", user.getPowerLevel())
-                .with("skill_average", user.getSkillAverage());
-        try {
-            EvaluationValue value = expression.evaluate();
-            return value.getNumberValue().doubleValue();
-        } catch (EvaluationException | ParseException e) {
-            plugin.logger().warn("Error evaluating ExpressionIncome for source with id " + sourceValues.getId() + ": " + e.getMessage());
-            e.printStackTrace();
+        synchronized (expression) {
+            // Set expression variables
+            expression.with("xp", finalXp)
+                    .with("base_xp", sourceValues.getXp())
+                    .with("level", user.getSkillLevel(skill))
+                    .with("power", user.getPowerLevel())
+                    .with("skill_average", user.getSkillAverage());
+            try {
+                EvaluationValue value = expression.evaluate();
+                return value.getNumberValue().doubleValue();
+            } catch (EvaluationException | ParseException e) {
+                plugin.logger().warn("Error evaluating ExpressionIncome for source with id " + sourceValues.getId() + ": " + e.getMessage());
+                e.printStackTrace();
+            }
         }
         return 0;
     }

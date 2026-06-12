@@ -23,7 +23,12 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.view.AnvilView;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class AnvilLeveler extends SourceLeveler {
+
+    private final Map<String, Double> multiplierCache = new ConcurrentHashMap<>();
 
     public AnvilLeveler(AuraSkills plugin) {
         super(plugin, SourceTypes.ANVIL);
@@ -68,6 +73,10 @@ public class AnvilLeveler extends SourceLeveler {
         plugin.getLevelManager().addXp(user, skill, source, multiplier * source.getXp());
     }
 
+    public void clearCache() {
+        multiplierCache.clear();
+    }
+
     @SuppressWarnings("removal")
     private double getRepairCostMultiplier(AnvilXpSource source, AnvilInventory anvil, Skill skill, InventoryClickEvent event) {
         int repairCost = 1;
@@ -79,19 +88,24 @@ public class AnvilLeveler extends SourceLeveler {
             repairCost = anvil.getRepairCost();
         }
         // Get the repair cost multiplier from placeholder
-        double multiplier = 1;
         String multiplierString = source.getMultiplier();
-        if (multiplierString != null) {
-            multiplierString = TextUtil.replace(multiplierString, "{repair_cost}", String.valueOf(repairCost));
-            Expression expression = new Expression(multiplierString);
+        if (multiplierString == null) {
+            return 1.0;
+        }
+
+        final int finalRepairCost = repairCost;
+        String cacheKey = source.getId().toString() + "_" + finalRepairCost;
+        return multiplierCache.computeIfAbsent(cacheKey, key -> {
+            String evaluatedString = TextUtil.replace(multiplierString, "{repair_cost}", String.valueOf(finalRepairCost));
             try {
-                multiplier = expression.evaluate().getNumberValue().doubleValue();
+                Expression expression = new Expression(evaluatedString);
+                return expression.evaluate().getNumberValue().doubleValue();
             } catch (EvaluationException | ParseException e) {
                 plugin.logger().warn("Invalid multiplier for anvil source " + source.getId() + " in skill " + skill.getId());
                 e.printStackTrace();
+                return 1.0;
             }
-        }
-        return multiplier;
+        });
     }
 
     @Nullable

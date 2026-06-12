@@ -110,11 +110,10 @@ public class FightingAbilities extends BukkitAbilityImpl {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void bleedListener(EntityDamageByEntityEvent event) {
-        var ability = Abilities.BLEED;
-
-        if (isDisabled(ability)) return;
-
         if (!(event.getDamager() instanceof Player player)) return;
+
+        var ability = Abilities.BLEED;
+        if (isDisabled(ability)) return;
 
         if (failsChecks(player, ability)) return;
 

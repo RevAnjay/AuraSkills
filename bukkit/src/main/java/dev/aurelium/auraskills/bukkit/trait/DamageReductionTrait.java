@@ -17,11 +17,14 @@ import org.bukkit.event.EventPriority;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DamageReductionTrait extends TraitImpl {
 
     @Nullable
     private Expression formula;
+    private final Map<Double, Double> cache = new ConcurrentHashMap<>();
 
     DamageReductionTrait(AuraSkills plugin) {
         super(plugin, Traits.DAMAGE_REDUCTION);
@@ -63,22 +66,31 @@ public class DamageReductionTrait extends TraitImpl {
 
     public void resetFormula() {
         formula = null;
+        cache.clear();
     }
 
     private double getReductionValue(double value) {
-        Trait trait = Traits.DAMAGE_REDUCTION;
-        try {
-            if (formula == null) {
-                formula = new Expression(trait.optionString("formula"));
+        return cache.computeIfAbsent(value, val -> {
+            Trait trait = Traits.DAMAGE_REDUCTION;
+            try {
+                if (formula == null) {
+                    synchronized (this) {
+                        if (formula == null) {
+                            formula = new Expression(trait.optionString("formula"));
+                        }
+                    }
+                }
+                Expression localFormula = formula;
+                synchronized (localFormula) {
+                    localFormula.with("value", val);
+                    return localFormula.evaluate().getNumberValue().doubleValue();
+                }
+            } catch (EvaluationException | ParseException | UnsupportedOperationException e) {
+                plugin.logger().warn("Failed to evaluate formula for trait auraskills/damage_reduction: " + e.getMessage());
             }
-            formula.with("value", value);
-
-            return formula.evaluate().getNumberValue().doubleValue();
-        } catch (EvaluationException | ParseException | UnsupportedOperationException e) {
-            plugin.logger().warn("Failed to evaluate formula for trait auraskills/damage_reduction: " + e.getMessage());
-        }
-        // Default formula
-        return -1.0 * Math.pow(1.01, -1.0 * value) + 1;
+            // Default formula
+            return -1.0 * Math.pow(1.01, -1.0 * val) + 1;
+        });
     }
 
 }

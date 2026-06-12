@@ -4,6 +4,7 @@ import dev.aurelium.auraskills.api.event.mana.ManaAbilityActivateEvent;
 import dev.aurelium.auraskills.api.mana.ManaAbility;
 import dev.aurelium.auraskills.api.util.NumberUtil;
 import dev.aurelium.auraskills.bukkit.AuraSkills;
+import dev.aurelium.auraskills.bukkit.util.PdcUtils;
 import dev.aurelium.auraskills.bukkit.util.VersionUtils;
 import dev.aurelium.auraskills.common.config.Option;
 import dev.aurelium.auraskills.common.mana.ManaAbilityData;
@@ -20,6 +21,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.Nullable;
 
@@ -186,22 +188,36 @@ public abstract class ManaAbilityProvider implements Listener {
     }
 
     protected boolean shouldIgnoreItem(ItemStack item) {
+        if (!item.hasItemMeta()) return false;
+
+        NamespacedKey key = new NamespacedKey(plugin, IGNORE_INTERACT_KEY);
+
+        // Fast path using PdcUtils
+        PersistentDataContainer pdc = PdcUtils.getPdc(item);
+        if (pdc != null) {
+            if (pdc.has(key, PersistentDataType.BYTE)) {
+                return true;
+            }
+            if (!pdc.has(key, PersistentDataType.BOOLEAN)) {
+                return false;
+            }
+        }
+
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return false;
 
         var container = meta.getPersistentDataContainer();
-
-        NamespacedKey key = new NamespacedKey(plugin, IGNORE_INTERACT_KEY);
 
         if (VersionUtils.isAtLeastVersion(20)) {
             // Convert old format from 2.1.0-2.1.1
             if (container.has(key, PersistentDataType.BOOLEAN)) {
                 container.remove(key);
                 container.set(key, PersistentDataType.BYTE, (byte) 1);
+                item.setItemMeta(meta);
             }
         }
 
-        return container.has(new NamespacedKey(plugin, IGNORE_INTERACT_KEY), PersistentDataType.BYTE);
+        return container.has(key, PersistentDataType.BYTE);
     }
 
 }

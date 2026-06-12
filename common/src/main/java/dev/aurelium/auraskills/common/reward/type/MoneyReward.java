@@ -17,11 +17,20 @@ public class MoneyReward extends SkillReward {
     private final double amount;
     @Nullable
     private final String formula;
+    @Nullable
+    private Expression parsedFormula;
 
     public MoneyReward(AuraSkillsPlugin plugin, Skill skill, double amount, @Nullable String formula) {
         super(plugin, skill);
         this.amount = amount;
         this.formula = formula;
+        if (formula != null) {
+            try {
+                this.parsedFormula = new Expression(formula);
+            } catch (Exception e) {
+                plugin.logger().warn("Failed to parse money reward expression: " + formula);
+            }
+        }
     }
 
     @Override
@@ -33,16 +42,17 @@ public class MoneyReward extends SkillReward {
     }
 
     public double getAmount(int level) {
-        if (formula == null && amount > 0) {
+        if (parsedFormula == null && amount > 0) {
             return amount;
-        } else if (formula != null) {
-            Expression expression = new Expression(formula);
-            expression.with("level", level);
-            try {
-                return expression.evaluate().getNumberValue().doubleValue();
-            } catch (EvaluationException | ParseException e) {
-                plugin.logger().warn("Failed to evaluate money reward expression " + expression);
-                e.printStackTrace();
+        } else if (parsedFormula != null) {
+            synchronized (parsedFormula) {
+                parsedFormula.with("level", level);
+                try {
+                    return parsedFormula.evaluate().getNumberValue().doubleValue();
+                } catch (EvaluationException | ParseException e) {
+                    plugin.logger().warn("Failed to evaluate money reward expression " + formula);
+                    e.printStackTrace();
+                }
             }
         }
         return 0.0;

@@ -26,6 +26,9 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.view.AnvilView;
 
+import org.bukkit.Material;
+
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -107,11 +110,12 @@ public class EnchantingAbilities extends BukkitAbilityImpl {
                     }
 
                     ItemStack item = player.getInventory().getItemInMainHand();
-                    if (item != null && !item.getEnchantments().isEmpty()) {
+                    if (item != null && item.getType() != Material.AIR && item.hasItemMeta() && !item.getEnchantments().isEmpty()) {
                         double strengthPerType = getValue(ability, user);
                         int enchantCount = 0;
+                        List<String> excludedEnchants = ability.optionStringList("excluded_enchantments");
                         for (Enchantment enchantment : item.getEnchantments().keySet()) {
-                            if (ability.optionStringList("excluded_enchantments").contains(enchantment.getKey().getKey())) {
+                            if (excludedEnchants.contains(enchantment.getKey().getKey())) {
                                 continue;
                             }
                             enchantCount++;
