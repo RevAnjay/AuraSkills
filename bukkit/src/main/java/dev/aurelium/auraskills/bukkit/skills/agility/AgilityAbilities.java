@@ -50,7 +50,6 @@ public class AgilityAbilities extends BukkitAbilityImpl {
         var ability = Abilities.LIGHT_FALL;
 
         if (isDisabled(ability)) return;
-        if (user.getAbilityLevel(ability) <= 0) return;
         if (failsChecks(player, ability)) return;
 
         if (!(event.getFinalDamage() > 0.0)) return;
@@ -167,7 +166,7 @@ public class AgilityAbilities extends BukkitAbilityImpl {
         var ability = Abilities.FLEETING;
 
         if (isDisabled(ability)) return;
-        if (user.getAbilityLevel(ability) <= 0) return;
+        if (failsChecks(player, ability)) return;
 
         AttributeInstance attribute = player.getAttribute(AttributeCompat.maxHealth);
         if (attribute == null) return;
@@ -178,7 +177,6 @@ public class AgilityAbilities extends BukkitAbilityImpl {
             if (user.getTraitModifier(TraitModifiers.FLEETING.getModifierId()) != null) {
                 return;
             }
-            if (failsChecks(player, ability)) return;
             double percent = getValue(ability, user);
             user.addTraitModifier(new TraitModifier(TraitModifiers.FLEETING.getModifierId(), Traits.MOVEMENT_SPEED, percent, Operation.ADD));
 
@@ -311,7 +309,6 @@ public class AgilityAbilities extends BukkitAbilityImpl {
         var ability = Abilities.THUNDER_FALL;
 
         if (isDisabled(ability)) return;
-        if (user.getAbilityLevel(ability) <= 0) return;
         if (failsChecks(player, ability)) return;
 
         if (!player.isSneaking()) return;
