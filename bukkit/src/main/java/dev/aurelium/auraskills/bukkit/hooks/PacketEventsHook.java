@@ -4,7 +4,7 @@ import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
 import com.github.retrooper.packetevents.event.PacketSendEvent;
-import com.github.retrooper.packetevents.protocol.packettype.PacketType;
+import com.github.retrooper.packetevents.protocol.packettype.PacketType.Play.Server;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSystemChatMessage;
 import dev.aurelium.auraskills.bukkit.AuraSkills;
 import dev.aurelium.auraskills.bukkit.util.VersionUtils;
@@ -17,6 +17,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.spongepowered.configurate.ConfigurationNode;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 
 import java.util.Map;
 import java.util.Set;
@@ -35,6 +37,7 @@ public class PacketEventsHook extends Hook implements Listener {
     private final Set<UUID> quittingPlayers = ConcurrentHashMap.newKeySet();
 
     private final AuraSkills skillsPlugin;
+    private ActionBarListener listener;
 
     public PacketEventsHook(AuraSkills plugin, ConfigurationNode config) {
         super(plugin, config);
@@ -58,8 +61,8 @@ public class PacketEventsHook extends Hook implements Listener {
         pendingPackets.computeIfAbsent(uuid, k -> new AtomicInteger(0)).incrementAndGet();
 
         player.spigot().sendMessage(
-            net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
-            net.md_5.bungee.api.chat.TextComponent.fromLegacyText(message)
+            ChatMessageType.ACTION_BAR,
+            TextComponent.fromLegacyText(message)
         );
     }
 
@@ -76,7 +79,8 @@ public class PacketEventsHook extends Hook implements Listener {
     }
 
     private void registerListeners() {
-        PacketEvents.getAPI().getEventManager().registerListener(new ActionBarListener());
+        listener = new ActionBarListener();
+        PacketEvents.getAPI().getEventManager().registerListener(listener);
         skillsPlugin.getLogger().info("[PacketEventsHook] Packet listeners registered");
     }
 
@@ -104,6 +108,9 @@ public class PacketEventsHook extends Hook implements Listener {
     public void cleanup() {
         pendingPackets.clear();
         quittingPlayers.clear();
+        if (listener != null) {
+            PacketEvents.getAPI().getEventManager().unregisterListener(listener);
+        }
     }
 
     private class ActionBarListener extends PacketListenerAbstract {
@@ -115,8 +122,8 @@ public class PacketEventsHook extends Hook implements Listener {
         @Override
         public void onPacketSend(PacketSendEvent event) {
             var packetType = event.getPacketType();
-            if (packetType != PacketType.Play.Server.ACTION_BAR
-                    && packetType != PacketType.Play.Server.SYSTEM_CHAT_MESSAGE) {
+            if (packetType != Server.ACTION_BAR
+                    && packetType != Server.SYSTEM_CHAT_MESSAGE) {
                 return;
             }
 
@@ -126,7 +133,7 @@ public class PacketEventsHook extends Hook implements Listener {
 
                 UUID uuid = player.getUniqueId();
 
-                if (packetType == PacketType.Play.Server.ACTION_BAR) {
+                if (packetType == Server.ACTION_BAR) {
                     if (!consumeOwnPacket(uuid)) {
                         pauseForOtherPlugin(player);
                     }
