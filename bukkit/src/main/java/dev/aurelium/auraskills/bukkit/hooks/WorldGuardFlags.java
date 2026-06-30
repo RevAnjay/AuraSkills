@@ -83,9 +83,11 @@ public class WorldGuardFlags {
         CUSTOM_LOOT(true);
 
         private final Object def;
+        private final String key;
 
         FlagKey(Object def) {
             this.def = def;
+            this.key = TextUtil.replace(name().toLowerCase(Locale.ROOT), "_", "-");
         }
 
         public Object getDefault() {
@@ -94,7 +96,7 @@ public class WorldGuardFlags {
 
         @Override
         public String toString() {
-            return TextUtil.replace(name().toLowerCase(Locale.ROOT), "_", "-");
+            return key;
         }
     }
 

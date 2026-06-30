@@ -15,6 +15,8 @@ import dev.aurelium.slate.text.TextFormatter;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -41,6 +43,8 @@ public class BossBarManager implements Listener {
     private final Map<UUID, Map<Skill, String>> lastTexts;
     private final Map<UUID, String> singleLastTexts;
     private final Set<BossBar> activeBossBars;
+    private final Cache<String, Component> componentCache;
+    private final Map<Long, String> levelXpTextCache;
     private String mode;
     private int stayTime;
     private Map<Skill, BossBar.Color> colors;
@@ -69,6 +73,11 @@ public class BossBarManager implements Listener {
         this.lastTexts = new ConcurrentHashMap<>();
         this.singleLastTexts = new ConcurrentHashMap<>();
         this.activeBossBars = ConcurrentHashMap.newKeySet();
+        this.componentCache = CacheBuilder.newBuilder()
+                .maximumSize(1000)
+                .expireAfterAccess(5, TimeUnit.MINUTES)
+                .build();
+        this.levelXpTextCache = new ConcurrentHashMap<>();
         loadNumberFormats();
         this.animateProgress = plugin.configBoolean(Option.BOSS_BAR_ANIMATE_PROGRESS);
         this.updateEvery = plugin.configInt(Option.BOSS_BAR_UPDATE_EVERY);
@@ -91,6 +100,9 @@ public class BossBarManager implements Listener {
     }
 
     private void loadNumberFormats() {
+        if (levelXpTextCache != null) {
+            levelXpTextCache.clear();
+        }
         try {
             this.xpFormat = new DecimalFormat(plugin.configString(Option.BOSS_BAR_XP_FORMAT));
             this.levelXpFormat = new DecimalFormat(plugin.configString(Option.BOSS_BAR_LEVEL_XP_FORMAT));
@@ -163,6 +175,7 @@ public class BossBarManager implements Listener {
         activeBossBars.clear();
         lastTexts.clear();
         singleLastTexts.clear();
+        componentCache.invalidateAll();
     }
 
     public void sendBossBar(Player player, Skill skill, double currentXp, double levelXp, double xpGained, int level, boolean maxed, double income) {
@@ -228,11 +241,20 @@ public class BossBarManager implements Listener {
         scheduleHide(playerId, skill, bossBar); // Schedule tasks to hide the boss bar
     }
 
+    private Component getComponent(String text) {
+        Component name = componentCache.getIfPresent(text);
+        if (name == null) {
+            name = tf.toComponent(text);
+            componentCache.put(text, name);
+        }
+        return name;
+    }
+
     private BossBar handleNewBossBar(Player player, Skill skill, float progressOld, float progressNew, String text) {
         BossBar.Color color = getColor(skill);
         BossBar.Overlay overlay = getOverlay(skill);
 
-        Component name = tf.toComponent(text);
+        Component name = getComponent(text);
 
         BossBar bossBar = BossBar.bossBar(name, progressOld, color, overlay);
         if (!animateProgress) {  // If the config option is disabled, immediately show new progress
@@ -253,13 +275,15 @@ public class BossBarManager implements Listener {
     }
 
     private void handleExistingBossBar(BossBar bossBar, Player player, Skill skill, float progress, String text, boolean textChanged) {
-        if (!animateProgress) {  // Update boss bar progress immediately
-            bossBar.progress(progress);
-        } else {  // Update progress later, so the player sees the animation from previous progress (from reused boss bar) to new
-            plugin.getScheduler().scheduleAtEntity(player, () -> bossBar.progress(progress), 2 * 50, TimeUnit.MILLISECONDS);
+        if (bossBar.progress() != progress) {
+            if (!animateProgress) {  // Update boss bar progress immediately
+                bossBar.progress(progress);
+            } else {  // Update progress later, so the player sees the animation from previous progress (from reused boss bar) to new
+                plugin.getScheduler().scheduleAtEntity(player, () -> bossBar.progress(progress), 2 * 50, TimeUnit.MILLISECONDS);
+            }
         }
         if (textChanged) {
-            Component name = tf.toComponent(text);
+            Component name = getComponent(text);
             if (!bossBar.name().equals(name)) {
                 bossBar.name(name);
             }
@@ -302,9 +326,9 @@ public class BossBarManager implements Listener {
 
     private String getLevelXpText(long levelXp) {
         if (useSuffix) {
-            return BigNumber.withSuffix(levelXp);
+            return levelXpTextCache.computeIfAbsent(levelXp, BigNumber::withSuffix);
         } else {
-            return levelXpFormat.format(levelXp);
+            return levelXpTextCache.computeIfAbsent(levelXp, levelXpFormat::format);
         }
     }
 
@@ -392,7 +416,7 @@ public class BossBarManager implements Listener {
     }
 
     private String setPlaceholders(Player player, String input) {
-        if (placeholderApi && plugin.getHookManager().isRegistered(PlaceholderHook.class)) {
+        if (placeholderApi && input.contains("%") && plugin.getHookManager().isRegistered(PlaceholderHook.class)) {
             return plugin.getHookManager().getHook(PlaceholderHook.class).setPlaceholders(plugin.getUser(player), input);
         } else {
             return input;
