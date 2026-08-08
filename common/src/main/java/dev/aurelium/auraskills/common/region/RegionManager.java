@@ -18,11 +18,13 @@ public abstract class RegionManager {
 
     protected final AuraSkillsPlugin plugin;
     protected final ConcurrentMap<RegionCoordinate, Region> regions;
+    private final ConcurrentMap<RegionCoordinate, Boolean> fileExistsCache;
     private boolean saving;
 
     public RegionManager(AuraSkillsPlugin plugin) {
         this.plugin = plugin;
         this.regions = new ConcurrentHashMap<>();
+        this.fileExistsCache = new ConcurrentHashMap<>();
         this.saving = false;
     }
 
@@ -35,6 +37,7 @@ public abstract class RegionManager {
 
     public void clearRegionMap() {
         regions.clear();
+        fileExistsCache.clear();
     }
 
     public void setRegion(RegionCoordinate coordinate, Region region) {
@@ -43,30 +46,42 @@ public abstract class RegionManager {
 
     public void loadRegion(Region region) {
         if (region.isLoading()) return;
-        region.setLoading(true);
 
         RegionCoordinate regionCoordinate = new RegionCoordinate(region.getWorldName(), region.getX(), region.getZ());
         String worldName = regionCoordinate.getWorldName();
         int regionX = regionCoordinate.getX();
         int regionZ = regionCoordinate.getZ();
 
+        // Check if file is known to not exist
+        Boolean exists = fileExistsCache.get(regionCoordinate);
+        if (exists != null && !exists && !region.shouldReload()) {
+            return;
+        }
+
         File file = new File(plugin.getPluginFolder() + "/regiondata/" + worldName + "/r." + regionX + "." + regionZ + ".asrg");
-        if (file.exists()) {
-            if (saving) {
-                region.setReload(true);
+        if (!file.exists()) {
+            fileExistsCache.put(regionCoordinate, false);
+            return;
+        }
+
+        region.setLoading(true);
+        fileExistsCache.put(regionCoordinate, true);
+
+        if (saving) {
+            region.setReload(true);
+        }
+        try {
+            loadNbtFile(file, region);
+        } catch (IOException e) {
+            boolean deleted = file.delete();
+            if (deleted) {
+                plugin.logger().warn("Deleted " + file.getName() + " because it was corrupted, this won't affect anything");
+                fileExistsCache.put(regionCoordinate, false);
             }
-            try {
-                loadNbtFile(file, region);
-            } catch (IOException e) {
-                boolean deleted = file.delete();
-                if (deleted) {
-                    plugin.logger().warn("Deleted " + file.getName() + " because it was corrupted, this won't affect anything");
-                }
-                region.setReload(false);
-            } catch (Exception e) {
-                e.printStackTrace();
-                region.setReload(false);
-            }
+            region.setReload(false);
+        } catch (Exception e) {
+            e.printStackTrace();
+            region.setReload(false);
         }
         region.setLoading(false);
     }
@@ -137,17 +152,20 @@ public abstract class RegionManager {
                 if (file.exists()) {
                     try {
                         Files.delete(file.toPath());
+                        fileExistsCache.put(regionCoordinate, false);
                     } catch (Exception ignored) {
                     }
                 }
             } else {
                 NBTUtil.write(namedTag, file);
+                fileExistsCache.put(regionCoordinate, true);
             }
         } catch (IOException e) {
             e.printStackTrace();
             boolean deleted = file.delete();
             if (deleted) {
                 plugin.logger().warn("Deleted " + file.getName() + " because it was corrupted, this won't affect anything");
+                fileExistsCache.put(regionCoordinate, false);
             }
         }
     }
@@ -195,7 +213,8 @@ public abstract class RegionManager {
                 // Clear region from memory if no chunks are loaded in it
                 if (clearUnused) {
                     if (isRegionUnused(region)) {
-                        regions.remove(new RegionCoordinate(region.getWorldName(), region.getX(), region.getZ()));
+                        RegionCoordinate coord = new RegionCoordinate(region.getWorldName(), region.getX(), region.getZ());
+                        regions.remove(coord);
                     }
                 }
             } catch (Exception e) {
