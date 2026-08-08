@@ -11,12 +11,10 @@ import dev.aurelium.auraskills.common.message.type.ActionBarMessage;
 import dev.aurelium.auraskills.common.util.math.BigNumber;
 import dev.aurelium.auraskills.common.util.math.RomanNumber;
 import dev.aurelium.auraskills.common.util.text.TextUtil;
+import dev.aurelium.auraskills.paper.util.AdventureUtil;
 import dev.aurelium.slate.text.TextFormatter;
-import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -27,7 +25,6 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -40,11 +37,6 @@ public class BossBarManager implements Listener {
     private final Map<UUID, BossBar> singleBossBars;
     private final Map<UUID, Integer> singleCurrentActions;
     private final Map<UUID, Integer> singleCheckCurrentActions;
-    private final Map<UUID, Map<Skill, String>> lastTexts;
-    private final Map<UUID, String> singleLastTexts;
-    private final Set<BossBar> activeBossBars;
-    private final Cache<String, Component> componentCache;
-    private final Map<Long, String> levelXpTextCache;
     private String mode;
     private int stayTime;
     private Map<Skill, BossBar.Color> colors;
@@ -56,11 +48,6 @@ public class BossBarManager implements Listener {
     private final AuraSkills plugin;
     private final TextFormatter tf = new TextFormatter();
     private boolean animateProgress;
-    private int updateEvery;
-    private boolean displayMaxed;
-    private boolean roundXp;
-    private boolean useSuffix;
-    private boolean placeholderApi;
 
     public BossBarManager(AuraSkills plugin) {
         this.bossBars = new ConcurrentHashMap<>();
@@ -70,21 +57,8 @@ public class BossBarManager implements Listener {
         this.singleCurrentActions = new ConcurrentHashMap<>();
         this.checkCurrentActions = new ConcurrentHashMap<>();
         this.singleCheckCurrentActions = new ConcurrentHashMap<>();
-        this.lastTexts = new ConcurrentHashMap<>();
-        this.singleLastTexts = new ConcurrentHashMap<>();
-        this.activeBossBars = ConcurrentHashMap.newKeySet();
-        this.componentCache = CacheBuilder.newBuilder()
-                .maximumSize(1000)
-                .expireAfterAccess(5, TimeUnit.MINUTES)
-                .build();
-        this.levelXpTextCache = new ConcurrentHashMap<>();
         loadNumberFormats();
         this.animateProgress = plugin.configBoolean(Option.BOSS_BAR_ANIMATE_PROGRESS);
-        this.updateEvery = plugin.configInt(Option.BOSS_BAR_UPDATE_EVERY);
-        this.displayMaxed = plugin.configBoolean(Option.BOSS_BAR_DISPLAY_MAXED);
-        this.roundXp = plugin.configBoolean(Option.BOSS_BAR_ROUND_XP);
-        this.useSuffix = plugin.configBoolean(Option.BOSS_BAR_USE_SUFFIX);
-        this.placeholderApi = plugin.configBoolean(Option.BOSS_BAR_PLACEHOLDER_API);
     }
 
     public NumberFormat getXpFormat() {
@@ -100,9 +74,6 @@ public class BossBarManager implements Listener {
     }
 
     private void loadNumberFormats() {
-        if (levelXpTextCache != null) {
-            levelXpTextCache.clear();
-        }
         try {
             this.xpFormat = new DecimalFormat(plugin.configString(Option.BOSS_BAR_XP_FORMAT));
             this.levelXpFormat = new DecimalFormat(plugin.configString(Option.BOSS_BAR_LEVEL_XP_FORMAT));
@@ -124,11 +95,6 @@ public class BossBarManager implements Listener {
         colors = new ConcurrentHashMap<>();
         overlays = new ConcurrentHashMap<>();
         animateProgress = plugin.configBoolean(Option.BOSS_BAR_ANIMATE_PROGRESS);
-        updateEvery = plugin.configInt(Option.BOSS_BAR_UPDATE_EVERY);
-        displayMaxed = plugin.configBoolean(Option.BOSS_BAR_DISPLAY_MAXED);
-        roundXp = plugin.configBoolean(Option.BOSS_BAR_ROUND_XP);
-        useSuffix = plugin.configBoolean(Option.BOSS_BAR_USE_SUFFIX);
-        placeholderApi = plugin.configBoolean(Option.BOSS_BAR_PLACEHOLDER_API);
         for (String entry : plugin.configStringList(Option.BOSS_BAR_FORMAT)) {
             String[] splitEntry = entry.split(" ");
             Skill skill;
@@ -159,34 +125,29 @@ public class BossBarManager implements Listener {
             overlays.put(skill, overlay);
         }
         for (Player player : Bukkit.getOnlinePlayers()) {
-            Audience audience = plugin.getAudiences().player(player);
             for (Map.Entry<UUID, BossBar> entry : singleBossBars.entrySet()) {
-                audience.hideBossBar(entry.getValue());
+                AdventureUtil.hideBossBar(player, entry.getValue(), plugin.getAudiences());
             }
             for (Map.Entry<UUID, Map<Skill, BossBar>> entry : bossBars.entrySet()) {
                 Map<Skill, BossBar> bossBars = entry.getValue();
                 for (Map.Entry<Skill, BossBar> bossBarEntry : bossBars.entrySet()) {
-                    audience.hideBossBar(bossBarEntry.getValue());
+                    AdventureUtil.hideBossBar(player, bossBarEntry.getValue(), plugin.getAudiences());
                 }
             }
         }
         bossBars.clear();
         singleBossBars.clear();
-        activeBossBars.clear();
-        lastTexts.clear();
-        singleLastTexts.clear();
-        componentCache.invalidateAll();
     }
 
     public void sendBossBar(Player player, Skill skill, double currentXp, double levelXp, double xpGained, int level, boolean maxed, double income) {
         UUID playerId = player.getUniqueId();
-        if (maxed && !displayMaxed) { // display-maxed option
+        if (maxed && !plugin.configBoolean(Option.BOSS_BAR_DISPLAY_MAXED)) { // display-maxed option
             return;
         }
 
         incrementAction(player, skill);
         int currentAction = getCurrentAction(player, skill);
-        if (currentAction == -1 || currentAction % updateEvery != 0) {
+        if (currentAction == -1 || currentAction % plugin.configInt(Option.BOSS_BAR_UPDATE_EVERY) != 0) {
             return;
         }
 
@@ -199,18 +160,6 @@ public class BossBarManager implements Listener {
             bossBar = bossBars.get(playerId).get(skill);
         }
         String text = getBossBarText(player, skill, currentXp, (long) levelXp, xpGained, level, maxed, income, plugin.getLocale(player));
-        boolean textChanged = true;
-        if (mode.equals("single")) {
-            String lastText = singleLastTexts.put(playerId, text);
-            if (text.equals(lastText)) {
-                textChanged = false;
-            }
-        } else {
-            String lastText = lastTexts.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>()).put(skill, text);
-            if (text.equals(lastText)) {
-                textChanged = false;
-            }
-        }
         // Calculate xp progress
         float progressNew = (float) (currentXp / levelXp);
         progressNew = Math.min(progressNew, 1.0f);
@@ -230,7 +179,7 @@ public class BossBarManager implements Listener {
             bossBar = handleNewBossBar(player, skill, progressOld, progressNew, text);
         } else {
             // Use existing one
-            handleExistingBossBar(bossBar, player, skill, progressNew, text, textChanged);
+            handleExistingBossBar(bossBar, player, skill, progressNew, text);
         }
         // Increment current action
         if (mode.equals("single")) {
@@ -241,20 +190,11 @@ public class BossBarManager implements Listener {
         scheduleHide(playerId, skill, bossBar); // Schedule tasks to hide the boss bar
     }
 
-    private Component getComponent(String text) {
-        Component name = componentCache.getIfPresent(text);
-        if (name == null) {
-            name = tf.toComponent(text);
-            componentCache.put(text, name);
-        }
-        return name;
-    }
-
     private BossBar handleNewBossBar(Player player, Skill skill, float progressOld, float progressNew, String text) {
         BossBar.Color color = getColor(skill);
         BossBar.Overlay overlay = getOverlay(skill);
 
-        Component name = getComponent(text);
+        Component name = tf.toComponent(text);
 
         BossBar bossBar = BossBar.bossBar(name, progressOld, color, overlay);
         if (!animateProgress) {  // If the config option is disabled, immediately show new progress
@@ -262,8 +202,7 @@ public class BossBarManager implements Listener {
         } else {  // Update the progress later to display its animation from progressOld to progressNew
             plugin.getScheduler().scheduleAtEntity(player, () -> bossBar.progress(progressNew), 2 * 50, TimeUnit.MILLISECONDS);
         }
-        activeBossBars.add(bossBar);
-        plugin.getAudiences().player(player).showBossBar(bossBar);
+        AdventureUtil.showBossBar(player, bossBar, plugin.getAudiences());
 
         // Add to maps
         if (mode.equals("single")) {
@@ -274,28 +213,18 @@ public class BossBarManager implements Listener {
         return bossBar;
     }
 
-    private void handleExistingBossBar(BossBar bossBar, Player player, Skill skill, float progress, String text, boolean textChanged) {
-        if (bossBar.progress() != progress) {
-            if (!animateProgress) {  // Update boss bar progress immediately
-                bossBar.progress(progress);
-            } else {  // Update progress later, so the player sees the animation from previous progress (from reused boss bar) to new
-                plugin.getScheduler().scheduleAtEntity(player, () -> bossBar.progress(progress), 2 * 50, TimeUnit.MILLISECONDS);
-            }
-        }
-        if (textChanged) {
-            Component name = getComponent(text);
-            if (!bossBar.name().equals(name)) {
-                bossBar.name(name);
-            }
-        }
-        BossBar.Color color = getColor(skill);
-        if (bossBar.color() != color) {
-            bossBar.color(color);
-        }
+    private void handleExistingBossBar(BossBar bossBar, Player player, Skill skill, float progress, String text) {
+        Component name = tf.toComponent(text);
 
-        if (activeBossBars.add(bossBar)) {
-            plugin.getAudiences().player(player).showBossBar(bossBar);
+        if (!animateProgress) {  // Update boss bar progress immediately
+            bossBar.progress(progress);
+        } else {  // Update progress later, so the player sees the animation from previous progress (from reused boss bar) to new
+            plugin.getScheduler().scheduleAtEntity(player, () -> bossBar.progress(progress), 2 * 50, TimeUnit.MILLISECONDS);
         }
+        bossBar.name(name); // Update the boss bar to the new text value
+        bossBar.color(getColor(skill));
+
+        AdventureUtil.showBossBar(player, bossBar, plugin.getAudiences());
     }
 
     private String getBossBarText(Player player, Skill skill, double currentXp, long levelXp, double xpGained, int level, boolean maxed, double income, Locale locale) {
@@ -325,30 +254,37 @@ public class BossBarManager implements Listener {
     }
 
     private String getLevelXpText(long levelXp) {
-        if (useSuffix) {
-            return levelXpTextCache.computeIfAbsent(levelXp, BigNumber::withSuffix);
+        if (plugin.configBoolean(Option.BOSS_BAR_USE_SUFFIX)) {
+            return BigNumber.withSuffix(levelXp);
         } else {
-            return levelXpTextCache.computeIfAbsent(levelXp, levelXpFormat::format);
+            return levelXpFormat.format(levelXp);
         }
     }
 
     // Get the formatted text for the current player xp depending on rounding option
     private String getCurrentXpText(double currentXp) {
-        if (roundXp) {
-            return String.valueOf(Math.round(currentXp));
+        String currentXpText;
+        if (plugin.configBoolean(Option.BOSS_BAR_ROUND_XP)) {
+            currentXpText = String.valueOf(Math.round(currentXp));
         } else {
-            return xpFormat.format(currentXp);
+            currentXpText = xpFormat.format(currentXp);
         }
+        return currentXpText;
     }
 
     public void incrementAction(Player player, Skill skill) {
         UUID playerId = player.getUniqueId();
+        if (!checkCurrentActions.containsKey(playerId)) checkCurrentActions.put(playerId, new ConcurrentHashMap<>());
         // Increment current action
         if (mode.equals("single")) {
             singleCheckCurrentActions.put(playerId, singleCheckCurrentActions.getOrDefault(playerId, -1) + 1);
         } else {
-            checkCurrentActions.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>())
-                    .compute(skill, (s, current) -> (current == null) ? 0 : current + 1);
+            Integer currentAction = checkCurrentActions.get(playerId).get(skill);
+            if (currentAction != null) {
+                checkCurrentActions.get(playerId).put(skill, currentAction + 1);
+            } else {
+                checkCurrentActions.get(playerId).put(skill, 0);
+            }
         }
     }
 
@@ -363,8 +299,10 @@ public class BossBarManager implements Listener {
                     return;
                 }
                 if (bossBar != null) {
-                    plugin.getAudiences().player(playerId).hideBossBar(bossBar);
-                    activeBossBars.remove(bossBar);
+                    Player player = Bukkit.getPlayer(playerId);
+                    if (player != null) {
+                        AdventureUtil.hideBossBar(player, bossBar, plugin.getAudiences());
+                    }
                 }
                 singleCheckCurrentActions.remove(playerId);
             }, stayTime * 50L, TimeUnit.MILLISECONDS);
@@ -387,8 +325,10 @@ public class BossBarManager implements Listener {
                     return;
                 }
                 if (bossBar != null) {
-                    plugin.getAudiences().player(playerId).hideBossBar(bossBar);
-                    activeBossBars.remove(bossBar);
+                    Player player = Bukkit.getPlayer(playerId);
+                    if (player != null) {
+                        AdventureUtil.hideBossBar(player, bossBar, plugin.getAudiences());
+                    }
                 }
                 checkCurrentActions.remove(playerId);
             }, stayTime * 50L, TimeUnit.MILLISECONDS);
@@ -416,7 +356,7 @@ public class BossBarManager implements Listener {
     }
 
     private String setPlaceholders(Player player, String input) {
-        if (placeholderApi && input.contains("%") && plugin.getHookManager().isRegistered(PlaceholderHook.class)) {
+        if (plugin.configBoolean(Option.BOSS_BAR_PLACEHOLDER_API) && plugin.getHookManager().isRegistered(PlaceholderHook.class)) {
             return plugin.getHookManager().getHook(PlaceholderHook.class).setPlaceholders(plugin.getUser(player), input);
         } else {
             return input;
@@ -426,22 +366,12 @@ public class BossBarManager implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         UUID playerId = event.getPlayer().getUniqueId();
-        BossBar singleBar = singleBossBars.remove(playerId);
-        if (singleBar != null) {
-            activeBossBars.remove(singleBar);
-        }
-        Map<Skill, BossBar> multiBars = bossBars.remove(playerId);
-        if (multiBars != null) {
-            for (BossBar bar : multiBars.values()) {
-                activeBossBars.remove(bar);
-            }
-        }
+        bossBars.remove(playerId);
         currentActions.remove(playerId);
+        singleBossBars.remove(playerId);
         singleCurrentActions.remove(playerId);
         checkCurrentActions.remove(playerId);
         singleCheckCurrentActions.remove(playerId);
-        lastTexts.remove(playerId);
-        singleLastTexts.remove(playerId);
     }
 
 }
