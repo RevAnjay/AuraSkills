@@ -12,7 +12,6 @@ public enum Hooks implements HookType {
     LUCK_PERMS(BukkitLuckPermsHook.class, "LuckPerms"),
     PLACEHOLDER_API(PlaceholderApiHook.class, "PlaceholderAPI", false),
     PROTOCOL_LIB(ProtocolLibHook.class, "ProtocolLib"),
-    PACKET_EVENTS(PacketEventsHook.class, "PacketEvents", false),
     SLIMEFUN(SlimefunHook.class, "Slimefun"),
     TOWNY(TownyHook.class, "Towny"),
     VAULT(VaultHook.class, "Vault"),
