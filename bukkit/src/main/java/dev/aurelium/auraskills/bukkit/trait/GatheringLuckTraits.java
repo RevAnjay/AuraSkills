@@ -33,6 +33,10 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 import java.util.Set;
@@ -180,22 +184,33 @@ public class GatheringLuckTraits extends TraitImpl {
     }
 
     public Set<ItemStack> getUniqueDrops(Block block, Player player) {
-        Set<ItemStack> unique = Sets.newConcurrentHashSet();
-        for (ItemStack item : block.getDrops(player.getInventory().getItemInMainHand(), player)) {
-            // Check if a similar item already exists
-            boolean alreadyAdded = false;
-            for (ItemStack existing : unique) {
-                if (existing.isSimilar(item)) {
-                    alreadyAdded = true;
+        ItemStack[] drops = block.getDrops(player.getInventory().getItemInMainHand(), player).toArray(ItemStack[]::new);
+        if (drops.length <= 1) {
+            return drops.length == 0 ? Collections.emptySet() : Set.of(drops[0]);
+        }
+        // De-duplicate using isSimilar via index filter to avoid O(n²) with hash set equality
+        boolean[] keep = new boolean[drops.length];
+        int keepCount = 0;
+        for (int i = 0; i < drops.length; i++) {
+            boolean dup = false;
+            for (int j = 0; j < i; j++) {
+                if (drops[j].isSimilar(drops[i])) {
+                    dup = true;
                     break;
                 }
             }
-
-            if (!alreadyAdded) {
-                unique.add(item);
+            if (!dup) {
+                keep[i] = true;
+                keepCount++;
             }
         }
-        return unique;
+        List<ItemStack> result = new ArrayList<>(keepCount);
+        for (int i = 0; i < drops.length; i++) {
+            if (keep[i]) {
+                result.add(drops[i]);
+            }
+        }
+        return new LinkedHashSet<>(result);
     }
 
     private boolean failsChecks(Player player, Skill skill) {

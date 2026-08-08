@@ -40,6 +40,8 @@ public class BlockLeveler extends SourceLeveler {
     private final Set<Material> materialsWithStates = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private boolean isMaterialsWithStatesInitialized = false;
 
+    private final Map<BlockXpSource, Material[]> sourceMaterialsCache = new ConcurrentHashMap<>();
+    private final Map<BlockXpSource.BlockTriggers, List<SkillSource<BlockXpSource>>> sourcesByTriggerCache = new ConcurrentHashMap<>();
     private final Set<Material> collectShearBlocks = Set.of(
             Material.BEEHIVE,
             Material.BEE_NEST);
@@ -88,6 +90,8 @@ public class BlockLeveler extends SourceLeveler {
     public void clearSourceCache() {
         this.sourceCache.clear();
         this.materialsWithStates.clear();
+        this.sourceMaterialsCache.clear();
+        this.sourcesByTriggerCache.clear();
         this.isMaterialsWithStatesInitialized = false;
     }
 
@@ -333,14 +337,23 @@ public class BlockLeveler extends SourceLeveler {
     }
 
     private boolean matchesMaterial(BlockXpSource candidate, Block block) {
-        boolean blockMatches = false;
-        for (String blockName : candidate.getBlocks()) {
-            if (block.getType().name().equalsIgnoreCase(blockName)) {
-                blockMatches = true;
-                break;
+        Material blockType = block.getType();
+        Material[] materials = sourceMaterialsCache.computeIfAbsent(candidate, s -> {
+            String[] blocks = s.getBlocks();
+            Material[] mats = new Material[blocks.length];
+            for (int i = 0; i < blocks.length; i++) {
+                try {
+                    mats[i] = Material.valueOf(blocks[i].toUpperCase(Locale.ROOT));
+                } catch (IllegalArgumentException e) {
+                    mats[i] = Material.AIR;
+                }
             }
+            return mats;
+        });
+        for (Material mat : materials) {
+            if (mat == blockType) return true;
         }
-        return blockMatches;
+        return false;
     }
 
     private boolean matchesStates(Block block, BlockXpSource.BlockXpSourceState[] states) {
@@ -371,18 +384,19 @@ public class BlockLeveler extends SourceLeveler {
     }
 
     private List<SkillSource<BlockXpSource>> filterByTrigger(List<SkillSource<BlockXpSource>> sources, BlockXpSource.BlockTriggers trigger) {
-        List<SkillSource<BlockXpSource>> filtered = new ArrayList<>();
-        for (SkillSource<BlockXpSource> entry : sources) {
-            BlockXpSource source = entry.source();
-            // Check if trigger matches any of the source triggers
-            for (BlockXpSource.BlockTriggers sourceTrigger : source.getTriggers()) {
-                if (sourceTrigger == trigger) {
-                    filtered.add(entry);
-                    break;
+        return sourcesByTriggerCache.computeIfAbsent(trigger, t -> {
+            List<SkillSource<BlockXpSource>> filtered = new ArrayList<>();
+            for (SkillSource<BlockXpSource> entry : sources) {
+                BlockXpSource source = entry.source();
+                for (BlockXpSource.BlockTriggers sourceTrigger : source.getTriggers()) {
+                    if (sourceTrigger == t) {
+                        filtered.add(entry);
+                        break;
+                    }
                 }
             }
-        }
-        return filtered;
+            return filtered;
+        });
     }
 
     public static Map<String, Object> parseFromBlockData(String input) {

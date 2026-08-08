@@ -18,8 +18,8 @@ import java.util.UUID;
 
 public class JumpingLeveler extends SourceLeveler {
 
-    private final Set<UUID> prevPlayersOnGround = Sets.newConcurrentHashSet();
-    private final java.util.Map<UUID, Integer> jumpCounts = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Set<UUID> prevPlayersOnGround = new java.util.HashSet<>();
+    private final java.util.Map<UUID, Integer> jumpCounts = new java.util.HashMap<>();
 
     public JumpingLeveler(AuraSkills plugin) {
         super(plugin, SourceTypes.JUMPING);

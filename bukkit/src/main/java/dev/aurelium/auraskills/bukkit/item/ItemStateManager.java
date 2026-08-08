@@ -175,14 +175,14 @@ public class ItemStateManager {
         if (stack1 == null || stack2 == null) return false;
         if (stack1.getType() != stack2.getType()) return false;
 
-        boolean hasMeta1 = stack1.hasItemMeta();
-        boolean hasMeta2 = stack2.hasItemMeta();
-        if (!hasMeta1 && !hasMeta2) return true;
-        if (hasMeta1 != hasMeta2) return false;
+        // Fast path: if fully similar (including damage), avoid getItemMeta overhead
+        if (stack1.isSimilar(stack2)) return true;
 
+        // Paper's getItemMeta() returns null when item has no meta — no need for hasItemMeta()
         ItemMeta meta1 = stack1.getItemMeta();
         ItemMeta meta2 = stack2.getItemMeta();
-        if (meta1 == null || meta2 == null) return meta1 == meta2;
+        if (meta1 == null && meta2 == null) return true;
+        if (meta1 == null || meta2 == null) return false;
 
         if (meta1 instanceof Damageable d1 && meta2 instanceof Damageable d2) {
             int damage1 = d1.getDamage();

@@ -2,6 +2,8 @@ package dev.aurelium.auraskills.common.reward;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import dev.aurelium.auraskills.api.stat.Stat;
 import dev.aurelium.auraskills.common.AuraSkillsPlugin;
 import dev.aurelium.auraskills.common.hooks.PermissionsHook;
@@ -11,6 +13,7 @@ import dev.aurelium.auraskills.common.user.User;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,6 +23,10 @@ public class RewardTable {
     private final AuraSkillsPlugin plugin;
     private final List<Stat> statsLeveled;
     private final Map<Integer, List<SkillReward>> rewards;
+    // Cached results computed once after rewards are loaded (RewardTable instances are replaced on every reload,
+    // so these caches never go stale within an instance's lifetime).
+    private volatile Map<Integer, ImmutableList<StatReward>> statRewardsByLevel;
+    private final Map<Integer, Map<Stat, Double>> statLevelCache = new ConcurrentHashMap<>();
 
     public RewardTable(AuraSkillsPlugin plugin) {
         this.plugin = plugin;
@@ -85,8 +92,12 @@ public class RewardTable {
     }
 
     public Map<Stat, Double> getStatLevels(int level) {
-        Map<Stat, Double> statsMap = new ConcurrentHashMap<>();
-        Map<Integer, ImmutableList<StatReward>> statRewardMap = searchRewards(StatReward.class);
+        return statLevelCache.computeIfAbsent(level, this::computeStatLevels);
+    }
+
+    private Map<Stat, Double> computeStatLevels(int level) {
+        Map<Stat, Double> statsMap = new HashMap<>();
+        Map<Integer, ImmutableList<StatReward>> statRewardMap = getStatRewardsByLevel();
         for (int i = plugin.config().getStartLevel() + 1; i <= level; i++) {
             ImmutableList<StatReward> statRewardList = statRewardMap.get(i);
             if (statRewardList != null) {
@@ -97,6 +108,17 @@ public class RewardTable {
             }
         }
         return statsMap;
+    }
+
+    private Map<Integer, ImmutableList<StatReward>> getStatRewardsByLevel() {
+        if (statRewardsByLevel == null) {
+            synchronized (this) {
+                if (statRewardsByLevel == null) {
+                    statRewardsByLevel = searchRewards(StatReward.class);
+                }
+            }
+        }
+        return statRewardsByLevel;
     }
 
     public void applyPermissions(User player, int level) {

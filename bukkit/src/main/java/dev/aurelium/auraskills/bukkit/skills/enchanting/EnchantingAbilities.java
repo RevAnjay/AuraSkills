@@ -110,35 +110,43 @@ public class EnchantingAbilities extends BukkitAbilityImpl {
                     }
 
                     ItemStack item = player.getInventory().getItemInMainHand();
-                    if (item != null && item.getType() != Material.AIR && item.hasItemMeta() && !item.getEnchantments().isEmpty()) {
-                        double strengthPerType = getValue(ability, user);
-                        int enchantCount = 0;
-                        List<String> excludedEnchants = ability.optionStringList("excluded_enchantments");
-                        for (Enchantment enchantment : item.getEnchantments().keySet()) {
-                            if (excludedEnchants.contains(enchantment.getKey().getKey())) {
+                    // getEnchantments() returns empty map for items without meta — no need for hasItemMeta()
+                    if (item != null && item.getType() != Material.AIR) {
+                        Map<Enchantment, Integer> enchantments = item.getEnchantments();
+                        if (!enchantments.isEmpty()) {
+                            double strengthPerType = getValue(ability, user);
+                            int enchantCount = 0;
+                            List<String> excludedEnchants = ability.optionStringList("excluded_enchantments");
+                            for (Enchantment enchantment : enchantments.keySet()) {
+                                if (excludedEnchants.contains(enchantment.getKey().getKey())) {
+                                    continue;
+                                }
+                                enchantCount++;
+                            }
+                            double modifierValue = strengthPerType * enchantCount;
+
+                            StatModifier currentModifier = user.getStatModifier(modifierName);
+                            if (currentModifier != null && currentModifier.value() == modifierValue) {
                                 continue;
                             }
-                            enchantCount++;
-                        }
-                        double modifierValue = strengthPerType * enchantCount;
 
-                        StatModifier currentModifier = user.getStatModifier(modifierName);
-                        if (currentModifier != null && currentModifier.value() == modifierValue) {
-                            continue;
-                        }
-
-                        if (failsChecks(player, ability)) {
-                            if (currentModifier != null) {
-                                user.removeStatModifier(modifierName, true);
+                            if (failsChecks(player, ability)) {
+                                if (currentModifier != null) {
+                                    user.removeStatModifier(modifierName, true);
+                                }
+                                continue;
                             }
-                            continue;
-                        }
 
-                        if (modifierValue > 0.0) {
-                            StatModifier modifier = new StatModifier(modifierName, Stats.STRENGTH, modifierValue, Operation.ADD);
-                            user.addStatModifier(modifier, false);
+                            if (modifierValue > 0.0) {
+                                StatModifier modifier = new StatModifier(modifierName, Stats.STRENGTH, modifierValue, Operation.ADD);
+                                user.addStatModifier(modifier, false);
+                            } else {
+                                if (currentModifier != null) {
+                                    user.removeStatModifier(modifierName, true);
+                                }
+                            }
                         } else {
-                            if (currentModifier != null) {
+                            if (user.getStatModifier(modifierName) != null) {
                                 user.removeStatModifier(modifierName, true);
                             }
                         }
