@@ -47,4 +47,11 @@ public class AdventureUtil {
             audiences.player(player).sendMessage(component);
         }
     }
+
+    public static void setLore(org.bukkit.inventory.meta.ItemMeta meta, java.util.List<Component> components) {
+        if (meta == null || components == null) return;
+        if (PaperUtil.IS_PAPER) {
+            meta.lore(components);
+        }
+    }
 }
