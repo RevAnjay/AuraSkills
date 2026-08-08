@@ -110,6 +110,9 @@ public abstract class ActionBarManager {
                         continue;
                     }
 
+                    long now = System.currentTimeMillis();
+                    Long lastTime = lastSentTime.get(uuid);
+
                     boolean formatLast = plugin.configBoolean(Option.ACTION_BAR_FORMAT_LAST);
                     Locale locale = user.getLocale();
 
@@ -126,22 +129,24 @@ public abstract class ActionBarManager {
                         }
                     }
 
+                    String hp = getHp(user);
+                    String maxHp = getMaxHp(user);
+                    String mana = getMana(user);
+                    String maxMana = getMaxMana(user);
+
+                    String last = lastSentMessage.get(uuid);
+
                     String message = TextUtil.replace(base,
-                            "{hp}", getHp(user),
-                            "{max_hp}", getMaxHp(user),
-                            "{mana}", getMana(user),
-                            "{max_mana}", getMaxMana(user));
+                            "{hp}", hp,
+                            "{max_hp}", maxHp,
+                            "{mana}", mana,
+                            "{max_mana}", maxMana);
                     message = replacePlaceholderApi(user, message);
 
                     if (formatLast) {
                         message = plugin.getMessageProvider().applyFormatting(message);
                     }
 
-                    // Optimization: Only send if the message actually changed OR it's been > 2s (keep-alive)
-                    String last = lastSentMessage.get(uuid);
-                    Long lastTime = lastSentTime.get(uuid);
-                    long now = System.currentTimeMillis();
-                    
                     if (message.equals(last) && lastTime != null && (now - lastTime) < 2000) {
                         continue;
                     }
