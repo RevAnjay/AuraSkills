@@ -2,6 +2,7 @@ package dev.aurelium.auraskills.bukkit.commands;
 
 import co.aikar.commands.BaseCommand;
 import co.aikar.commands.annotation.*;
+import dev.aurelium.auraskills.api.event.skill.AddLevelConfirmEvent;
 import dev.aurelium.auraskills.api.skill.Skill;
 import dev.aurelium.auraskills.bukkit.AuraSkills;
 import dev.aurelium.auraskills.common.message.MessageBuilder;
@@ -90,6 +91,7 @@ public class SkillCommand extends BaseCommand {
                         .replace("{player}", player.getName()));
             }
             this.onSkillSetlevel(sender, player, skill, newLevel);
+            plugin.getServer().getPluginManager().callEvent(new AddLevelConfirmEvent(player, skill, newLevel, wasted, true));
         } else {
             sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.UNKNOWN_SKILL, locale));
         }

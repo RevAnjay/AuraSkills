@@ -1,5 +1,6 @@
 package dev.aurelium.auraskills.bukkit.menus;
 
+import dev.aurelium.auraskills.api.event.skill.AddLevelConfirmEvent;
 import dev.aurelium.auraskills.api.skill.Skill;
 import dev.aurelium.auraskills.bukkit.AuraSkills;
 import dev.aurelium.auraskills.bukkit.commands.SkillCommand;
@@ -27,10 +28,21 @@ public class AddLevelConfirmMenu {
             Player target = (Player) c.menu().getProperty("target");
             Skill skill = (Skill) c.menu().getProperty("skill");
             int newLevel = (int) c.menu().getProperty("new_level");
+            int wasted = (int) c.menu().getProperty("wasted");
             new SkillCommand(plugin).setSkillLevel(c.player(), target, skill, newLevel);
+            // Notify listeners
+            plugin.getServer().getPluginManager().callEvent(new AddLevelConfirmEvent(target, skill, newLevel, wasted, true));
             c.player().closeInventory();
         }));
-        menu.item("cancel", item -> item.onClick(c -> c.player().closeInventory()));
+        menu.item("cancel", item -> item.onClick(c -> {
+            Player target = (Player) c.menu().getProperty("target");
+            Skill skill = (Skill) c.menu().getProperty("skill");
+            int newLevel = (int) c.menu().getProperty("new_level");
+            int wasted = (int) c.menu().getProperty("wasted");
+            // Notify listeners
+            plugin.getServer().getPluginManager().callEvent(new AddLevelConfirmEvent(target, skill, newLevel, wasted, false));
+            c.player().closeInventory();
+        }));
     }
 
     private int getCurrentLevel(Object target, Object skill) {
