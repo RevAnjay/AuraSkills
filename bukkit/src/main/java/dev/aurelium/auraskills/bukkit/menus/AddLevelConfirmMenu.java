@@ -17,6 +17,7 @@ public class AddLevelConfirmMenu {
     }
 
     public void build(MenuBuilder menu) {
+        menu.onOpen(m -> AddLevelConfirmTracker.get().registerOpen(m.player(), (Skill) m.menu().getProperty("skill"), (int) m.menu().getProperty("new_level"), (int) m.menu().getProperty("wasted")));
         menu.item("info", item -> {
             item.replace("player", p -> ((Player) p.menu().getProperty("target")).getName());
             item.replace("skill", p -> ((Skill) p.menu().getProperty("skill")).getDisplayName(p.locale(), false));
@@ -30,6 +31,7 @@ public class AddLevelConfirmMenu {
             int newLevel = (int) c.menu().getProperty("new_level");
             int wasted = (int) c.menu().getProperty("wasted");
             new SkillCommand(plugin).setSkillLevel(c.player(), target, skill, newLevel);
+            AddLevelConfirmTracker.get().markHandled(target);
             // Notify listeners
             plugin.getServer().getPluginManager().callEvent(new AddLevelConfirmEvent(target, skill, newLevel, wasted, true));
             c.player().closeInventory();
@@ -39,6 +41,7 @@ public class AddLevelConfirmMenu {
             Skill skill = (Skill) c.menu().getProperty("skill");
             int newLevel = (int) c.menu().getProperty("new_level");
             int wasted = (int) c.menu().getProperty("wasted");
+            AddLevelConfirmTracker.get().markHandled(target);
             // Notify listeners
             plugin.getServer().getPluginManager().callEvent(new AddLevelConfirmEvent(target, skill, newLevel, wasted, false));
             c.player().closeInventory();
