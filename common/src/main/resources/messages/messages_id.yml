@@ -524,6 +524,7 @@ commands:
   skill:
     addlevel:
       wasted: "<yellow>{wasted} <gray>level dari <aqua>{skill} <gray>untuk pemain <gold>{player} <gray>terbuang karena level dibatasi oleh level maksimum."
+      max: "<red>Gagal menambahkan level: <aqua>{skill} <gray>untuk pemain <gold>{player} <gray>sudah mencapai level maksimum."
     setall:
       set: "<gray>Semua level skill diatur ke level <aqua>{level} <gray>untuk pemain <gold>{player}"
     setlevel:

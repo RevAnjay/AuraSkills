@@ -73,6 +73,13 @@ public class SkillCommand extends BaseCommand {
         Locale locale = user.getLocale();
         if (skill.isEnabled()) {
             int oldLevel = user.getSkillLevel(skill);
+            if (oldLevel >= skill.getMaxLevel()) {
+                // Skill is already maxed; reject the add
+                sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.SKILL_ADDLEVEL_MAX, locale)
+                        .replace("{skill}", skill.getDisplayName(locale))
+                        .replace("{player}", player.getName()));
+                return;
+            }
             int newLevel = Math.min(oldLevel + level, skill.getMaxLevel());
             int wasted = oldLevel + level - newLevel;
             if (wasted > 0) {
