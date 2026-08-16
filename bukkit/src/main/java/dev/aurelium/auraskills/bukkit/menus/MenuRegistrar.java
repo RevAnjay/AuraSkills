@@ -54,7 +54,7 @@ public class MenuRegistrar {
         buildMenu("sources", menu -> new SourcesMenu(plugin).build(menu));
         buildMenu("abilities", menu -> new AbilitiesMenu(plugin).build(menu));
         buildMenu("stat_info", menu -> new StatInfoMenu(plugin).build(menu));
-
+        buildMenu("skill_addlevel_confirm", menu -> new AddLevelConfirmMenu(plugin).build(menu));
         for (String nonDefault : ((ApiMenuManager) plugin.getApiBukkit().getMenuManager()).getNonDefaultMenuNames()) {
             buildMenu(nonDefault, menu -> {}); // Empty consumer passed since custom builder is applied in buildMenu
         }

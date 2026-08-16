@@ -11,6 +11,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.Locale;
+import java.util.Map;
 
 @CommandAlias("%skills_alias")
 @Subcommand("skill")
@@ -32,19 +33,7 @@ public class SkillCommand extends BaseCommand {
         if (skill.isEnabled()) {
             int startLevel = plugin.config().getStartLevel();
             if (level >= startLevel) {
-                int oldLevel = user.getSkillLevel(skill);
-                user.setSkillLevel(skill, level);
-                user.setSkillXp(skill, 0);
-                plugin.getStatManager().recalculateStats(user);
-                plugin.getRewardManager().updatePermissions(user);
-                plugin.getRewardManager().applyRevertCommands(user, skill, oldLevel, level);
-                plugin.getRewardManager().applyLevelUpCommands(user, skill, oldLevel, level);
-                // Reload items and armor to check for newly met requirements
-                plugin.getModifierManager().applyModifiers(player, true);
-                sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.SKILL_SETLEVEL_SET, locale)
-                        .replace("{skill}", skill.getDisplayName(locale))
-                        .replace("{level}", String.valueOf(level))
-                        .replace("{player}", player.getName()));
+                setSkillLevel(sender, player, skill, level);
             } else {
                 sender.sendMessage(MessageBuilder.create(plugin).locale(locale)
                         .prefix()
@@ -56,6 +45,24 @@ public class SkillCommand extends BaseCommand {
         }
     }
 
+    public void setSkillLevel(CommandSender sender, Player player, Skill skill, int level) {
+        User user = plugin.getUser(player);
+        Locale locale = user.getLocale();
+        int oldLevel = user.getSkillLevel(skill);
+        user.setSkillLevel(skill, level);
+        user.setSkillXp(skill, 0);
+        plugin.getStatManager().recalculateStats(user);
+        plugin.getRewardManager().updatePermissions(user);
+        plugin.getRewardManager().applyRevertCommands(user, skill, oldLevel, level);
+        plugin.getRewardManager().applyLevelUpCommands(user, skill, oldLevel, level);
+        // Reload items and armor to check for newly met requirements
+        plugin.getModifierManager().applyModifiers(player, true);
+        sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.SKILL_SETLEVEL_SET, locale)
+                .replace("{skill}", skill.getDisplayName(locale))
+                .replace("{level}", String.valueOf(level))
+                .replace("{player}", player.getName()));
+    }
+
     @Subcommand("addlevel")
     @CommandCompletion("@players @skills")
     @CommandPermission("auraskills.command.skill.setlevel")
@@ -65,8 +72,24 @@ public class SkillCommand extends BaseCommand {
         Locale locale = user.getLocale();
         if (skill.isEnabled()) {
             int oldLevel = user.getSkillLevel(skill);
-            level = oldLevel + level;
-            this.onSkillSetlevel(sender, player, skill, level);
+            int newLevel = Math.min(oldLevel + level, skill.getMaxLevel());
+            int wasted = oldLevel + level - newLevel;
+            if (wasted > 0) {
+                if (sender instanceof Player senderPlayer) { // Open GUI to confirm wasted levels
+                    plugin.getSlate().openMenu(senderPlayer, "skill_addlevel_confirm", Map.of(
+                            "target", player,
+                            "skill", skill,
+                            "new_level", newLevel,
+                            "wasted", wasted));
+                    return;
+                }
+                // Console sender, warn about wasted levels
+                sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.SKILL_ADDLEVEL_WASTED, locale)
+                        .replace("{skill}", skill.getDisplayName(locale))
+                        .replace("{wasted}", String.valueOf(wasted))
+                        .replace("{player}", player.getName()));
+            }
+            this.onSkillSetlevel(sender, player, skill, newLevel);
         } else {
             sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.UNKNOWN_SKILL, locale));
         }
