@@ -75,9 +75,14 @@ public class SkillCommand extends BaseCommand {
             int oldLevel = user.getSkillLevel(skill);
             if (oldLevel >= skill.getMaxLevel()) {
                 // Skill is already maxed; reject the add
-                sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.SKILL_ADDLEVEL_MAX, locale)
+                String msg = plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.SKILL_ADDLEVEL_MAX, locale)
                         .replace("{skill}", skill.getDisplayName(locale))
-                        .replace("{player}", player.getName()));
+                        .replace("{player}", player.getName());
+                sender.sendMessage(msg);
+                if (sender != player) {
+                    player.sendMessage(msg);
+                }
+                plugin.getServer().getPluginManager().callEvent(new AddLevelConfirmEvent(player, skill, oldLevel, 0, false));
                 return;
             }
             int newLevel = Math.min(oldLevel + level, skill.getMaxLevel());
@@ -101,7 +106,12 @@ public class SkillCommand extends BaseCommand {
             this.onSkillSetlevel(sender, player, skill, newLevel);
             plugin.getServer().getPluginManager().callEvent(new AddLevelConfirmEvent(player, skill, newLevel, wasted, true));
         } else {
-            sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.UNKNOWN_SKILL, locale));
+            String msg = plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.UNKNOWN_SKILL, locale);
+            sender.sendMessage(msg);
+            if (sender != player) {
+                player.sendMessage(msg);
+            }
+            plugin.getServer().getPluginManager().callEvent(new AddLevelConfirmEvent(player, skill, user.getSkillLevel(skill), 0, false));
         }
     }
 
