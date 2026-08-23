@@ -28,6 +28,7 @@ public abstract class ActionBarManager {
     private final Map<UUID, Integer> timer = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> currentAction = new ConcurrentHashMap<>();
     private final Map<Locale, String> idleMessageCache = new ConcurrentHashMap<>();
+    private final Map<UUID, double[]> idleValueCache = new ConcurrentHashMap<>();
     private final Map<UUID, String> lastSentMessage = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastSentTime = new ConcurrentHashMap<>();
     private final Map<UUID, Long> pauseUntil = new ConcurrentHashMap<>();
@@ -129,12 +130,18 @@ public abstract class ActionBarManager {
                         }
                     }
 
+                    // Only rebuild the message when the expensive-to-read mana values changed; otherwise reuse the last one
+                    double[] raw = {user.getMana(), user.getMaxMana()};
+                    double[] lastRaw = idleValueCache.get(uuid);
+                    String last = lastSentMessage.get(uuid);
+                    if (Arrays.equals(raw, lastRaw) && last != null && lastTime != null && (now - lastTime) < 2000) {
+                        continue;
+                    }
+                    idleValueCache.put(uuid, raw);
                     String hp = getHp(user);
                     String maxHp = getMaxHp(user);
                     String mana = getMana(user);
                     String maxMana = getMaxMana(user);
-
-                    String last = lastSentMessage.get(uuid);
 
                     String message = TextUtil.replace(base,
                             "{hp}", hp,
@@ -372,6 +379,7 @@ public abstract class ActionBarManager {
 
     public void clearMessageCache() {
         idleMessageCache.clear();
+        idleValueCache.clear();
     }
 
 }

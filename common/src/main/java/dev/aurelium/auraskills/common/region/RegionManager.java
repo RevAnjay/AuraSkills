@@ -19,12 +19,14 @@ public abstract class RegionManager {
     protected final AuraSkillsPlugin plugin;
     protected final ConcurrentMap<RegionCoordinate, Region> regions;
     private final ConcurrentMap<RegionCoordinate, Boolean> fileExistsCache;
+    private final ConcurrentMap<RegionCoordinate, Long> regionLoadTime;
     private boolean saving;
 
     public RegionManager(AuraSkillsPlugin plugin) {
         this.plugin = plugin;
         this.regions = new ConcurrentHashMap<>();
         this.fileExistsCache = new ConcurrentHashMap<>();
+        this.regionLoadTime = new ConcurrentHashMap<>();
         this.saving = false;
     }
 
@@ -38,6 +40,7 @@ public abstract class RegionManager {
     public void clearRegionMap() {
         regions.clear();
         fileExistsCache.clear();
+        regionLoadTime.clear();
     }
 
     public void setRegion(RegionCoordinate coordinate, Region region) {
@@ -63,6 +66,15 @@ public abstract class RegionManager {
             fileExistsCache.put(regionCoordinate, false);
             return;
         }
+        fileExistsCache.put(regionCoordinate, true);
+
+        // Skip re-parsing a region file whose contents haven't changed since the last load.
+        if (!region.shouldReload()) {
+            Long lastLoad = regionLoadTime.get(regionCoordinate);
+            if (lastLoad != null && lastLoad == file.lastModified()) {
+                return;
+            }
+        }
 
         region.setLoading(true);
         fileExistsCache.put(regionCoordinate, true);
@@ -72,6 +84,7 @@ public abstract class RegionManager {
         }
         try {
             loadNbtFile(file, region);
+            regionLoadTime.put(regionCoordinate, file.lastModified());
         } catch (IOException e) {
             boolean deleted = file.delete();
             if (deleted) {
