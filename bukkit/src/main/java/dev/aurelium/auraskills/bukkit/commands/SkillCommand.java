@@ -83,19 +83,20 @@ public class SkillCommand extends BaseCommand {
             int newLevel = Math.min(oldLevel + level, skill.getMaxLevel());
             int wasted = oldLevel + level - newLevel;
             if (wasted > 0) {
-                if (sender instanceof Player senderPlayer) { // Open GUI to confirm wasted levels
-                    plugin.getSlate().openMenu(senderPlayer, "skill_addlevel_confirm", Map.of(
-                            "target", player,
-                            "skill", skill,
-                            "new_level", newLevel,
-                            "wasted", wasted));
-                    return;
+                // Always open confirmation GUI to the target player
+                Map<String, Object> properties = Map.of(
+                        "target", player,
+                        "skill", skill,
+                        "new_level", newLevel,
+                        "wasted", wasted);
+                plugin.getScheduler().executeAtEntity(player, task -> plugin.getSlate().openMenu(player, "skill_addlevel_confirm", properties));
+                if (sender != player) {
+                    sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.SKILL_ADDLEVEL_WASTED, locale)
+                            .replace("{skill}", skill.getDisplayName(locale))
+                            .replace("{wasted}", String.valueOf(wasted))
+                            .replace("{player}", player.getName()));
                 }
-                // Console sender, warn about wasted levels
-                sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.SKILL_ADDLEVEL_WASTED, locale)
-                        .replace("{skill}", skill.getDisplayName(locale))
-                        .replace("{wasted}", String.valueOf(wasted))
-                        .replace("{player}", player.getName()));
+                return;
             }
             this.onSkillSetlevel(sender, player, skill, newLevel);
             plugin.getServer().getPluginManager().callEvent(new AddLevelConfirmEvent(player, skill, newLevel, wasted, true));

@@ -21,8 +21,8 @@ import java.util.concurrent.ConcurrentMap;
 public class AddLevelConfirmTracker implements Listener {
 
     private final AuraSkills plugin;
-    // player -> open confirmation menu data
-    private final ConcurrentMap<Player, Data> open = new ConcurrentHashMap<>();
+    // player UUID -> open confirmation menu data
+    private final ConcurrentMap<java.util.UUID, Data> open = new ConcurrentHashMap<>();
 
     private record Data(Skill skill, int newLevel, int wasted) {}
 
@@ -38,17 +38,17 @@ public class AddLevelConfirmTracker implements Listener {
     }
 
     public void registerOpen(Player player, Skill skill, int newLevel, int wasted) {
-        open.put(player, new Data(skill, newLevel, wasted));
+        open.put(player.getUniqueId(), new Data(skill, newLevel, wasted));
     }
 
     public void markHandled(Player player) {
-        open.remove(player);
+        open.remove(player.getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onInventoryClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player player)) return;
-        Data data = open.remove(player);
+        Data data = open.remove(player.getUniqueId());
         if (data == null) return; // Not an open add-level confirmation
         // Closed without confirming -> treat as cancel
         plugin.getServer().getPluginManager().callEvent(
