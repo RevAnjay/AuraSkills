@@ -2,8 +2,10 @@ package dev.aurelium.auraskills.common.api.implementation;
 
 import dev.aurelium.auraskills.api.ability.Ability;
 import dev.aurelium.auraskills.api.mana.ManaAbility;
+import dev.aurelium.auraskills.api.skill.Multiplier;
 import dev.aurelium.auraskills.api.skill.Skill;
 import dev.aurelium.auraskills.api.source.XpSource;
+import dev.aurelium.auraskills.api.stat.ReloadableIdentifier;
 import dev.aurelium.auraskills.api.stat.Stat;
 import dev.aurelium.auraskills.api.stat.StatModifier;
 import dev.aurelium.auraskills.api.trait.Trait;
@@ -123,7 +125,17 @@ public class OfflineSkillsUser implements SkillsUser {
     }
 
     @Override
+    public void addStatModifier(StatModifier statModifier, boolean reload) {
+
+    }
+
+    @Override
     public void removeStatModifier(String name) {
+
+    }
+
+    @Override
+    public void removeStatModifier(String name, boolean reload) {
 
     }
 
@@ -143,7 +155,17 @@ public class OfflineSkillsUser implements SkillsUser {
     }
 
     @Override
+    public void addTraitModifier(TraitModifier traitModifier, boolean reload) {
+
+    }
+
+    @Override
     public void removeTraitModifier(String name) {
+
+    }
+
+    @Override
+    public void removeTraitModifier(String name, boolean reload) {
 
     }
 
@@ -239,4 +261,23 @@ public class OfflineSkillsUser implements SkillsUser {
         return future;
     }
 
+    @Override
+    public void reloadStatOrTrait(ReloadableIdentifier statOrTrait) {
+
+    }
+
+    @Override
+    public Map<String, Multiplier> getMultipliers() {
+        return Map.of();
+    }
+
+    @Override
+    public void addMultiplier(Multiplier multiplier) {
+
+    }
+
+    @Override
+    public void removeMultiplier(String name) {
+
+    }
 }

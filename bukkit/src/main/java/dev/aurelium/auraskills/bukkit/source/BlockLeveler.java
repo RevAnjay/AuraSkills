@@ -36,12 +36,7 @@ public class BlockLeveler extends SourceLeveler {
 
     private final BlockLevelerHelper helper;
     private final Map<UniqueBlock, SkillSource<BlockXpSource>> sourceCache;
-    private final SkillSource<BlockXpSource> NO_SOURCE = new SkillSource<>(null, null);
-    private final Set<Material> materialsWithStates = Collections.newSetFromMap(new ConcurrentHashMap<>());
-    private boolean isMaterialsWithStatesInitialized = false;
 
-    private final Map<BlockXpSource, Material[]> sourceMaterialsCache = new ConcurrentHashMap<>();
-    private final Map<BlockXpSource.BlockTriggers, List<SkillSource<BlockXpSource>>> sourcesByTriggerCache = new ConcurrentHashMap<>();
     private final Set<Material> collectShearBlocks = Set.of(
             Material.BEEHIVE,
             Material.BEE_NEST);
@@ -62,37 +57,8 @@ public class BlockLeveler extends SourceLeveler {
         this.sourceCache = new ConcurrentHashMap<>();
     }
 
-    private void populateMaterialsWithStates() {
-        materialsWithStates.clear();
-        isMaterialsWithStatesInitialized = true;
-        try {
-            List<SkillSource<BlockXpSource>> sources = plugin.getSkillManager().getSourcesOfType(BlockXpSource.class);
-            if (sources == null) return;
-            for (SkillSource<BlockXpSource> entry : sources) {
-                if (entry == null) continue;
-                BlockXpSource source = entry.source();
-                if (source == null) continue;
-                if (source.getStates() != null && source.getStates().length > 0) {
-                    for (String blockName : source.getBlocks()) {
-                        if (blockName == null) continue;
-                        try {
-                            Material material = Material.valueOf(blockName.toUpperCase(Locale.ROOT));
-                            materialsWithStates.add(material);
-                        } catch (IllegalArgumentException ignored) {
-                        }
-                    }
-                }
-            }
-        } catch (Exception ignored) {
-        }
-    }
-
     public void clearSourceCache() {
         this.sourceCache.clear();
-        this.materialsWithStates.clear();
-        this.sourceMaterialsCache.clear();
-        this.sourcesByTriggerCache.clear();
-        this.isMaterialsWithStatesInitialized = false;
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -102,10 +68,10 @@ public class BlockLeveler extends SourceLeveler {
         Player player = event.getPlayer();
         Block block = event.getBlock();
 
-        handleBreak(player, block, event, trait -> () -> event.isDropItems() ? trait.getUniqueDrops(block, player) : Collections.emptySet());
+        handleBreak(player, block, event, trait -> event.isDropItems() ? trait.getUniqueDrops(block, player) : Collections.emptySet());
     }
 
-    public void handleBreak(Player player, Block block, Cancellable event, Function<GatheringLuckTraits, java.util.function.Supplier<Set<ItemStack>>> dropFunction) {
+    public void handleBreak(Player player, Block block, Cancellable event, Function<GatheringLuckTraits, Set<ItemStack>> dropFunction) {
         User user = plugin.getUser(player);
 
         SkillSource<BlockXpSource> skillSource = getSource(block, BlockXpSource.BlockTriggers.BREAK);
@@ -143,6 +109,9 @@ public class BlockLeveler extends SourceLeveler {
 
         Block block = event.getClickedBlock();
         if (block == null) return;
+        // Skip in the case the block was fertilized or filled.
+        // This can be cause by either a player or dispenser.
+        if (hasSkippableMeta(block, event)) return;
 
         boolean collecting = false;
         SkillSource<BlockXpSource> skillSource = getSource(block, BlockXpSource.BlockTriggers.INTERACT);
@@ -152,10 +121,6 @@ public class BlockLeveler extends SourceLeveler {
 
             if (skillSource == null) return;
         }
-
-        // Skip in the case the block was fertilized or filled.
-        // This can be cause by either a player or dispenser.
-        if (hasSkippableMeta(block, event)) return;
 
         if (collecting) {
             ItemStack item = event.getItem();
@@ -253,10 +218,10 @@ public class BlockLeveler extends SourceLeveler {
     }
 
     private void applyBlockLuck(Skill skill, Player player, User user, Block block, XpSource source) {
-        applyBlockLuck(skill, player, user, block, source, trait -> () -> trait.getUniqueDrops(block, player));
+        applyBlockLuck(skill, player, user, block, source, trait -> trait.getUniqueDrops(block, player));
     }
 
-    private void applyBlockLuck(Skill skill, Player player, User user, Block block, XpSource source, Function<GatheringLuckTraits, java.util.function.Supplier<Set<ItemStack>>> dropFunction) {
+    private void applyBlockLuck(Skill skill, Player player, User user, Block block, XpSource source, Function<GatheringLuckTraits, Set<ItemStack>> dropFunction) {
         // Don't drop extra for silk touch + ores
         ItemStack tool = player.getInventory().getItemInMainHand();
         if (tool.getEnchantmentLevel(Enchantment.SILK_TOUCH) > 0 && plugin.getAbilityManager().getAbilityImpl(MiningAbilities.class).dropsMineralDirectly(block)) {
@@ -280,25 +245,21 @@ public class BlockLeveler extends SourceLeveler {
 
     @Nullable
     public SkillSource<BlockXpSource> getSource(Block block, BlockXpSource.BlockTriggers trigger) {
+        return getSource(block, trigger, false);
+    }
+
+    @Nullable
+    public SkillSource<BlockXpSource> getSource(Block block, BlockXpSource.BlockTriggers trigger, boolean isReplaceCheck) {
         // Optimize by immediately rejecting air blocks
         if (block.getType().isAir()) {
             return null;
         }
 
-        if (!isMaterialsWithStatesInitialized) {
-            populateMaterialsWithStates();
-        }
-
-        BlockData blockData = null;
-        if (materialsWithStates.contains(block.getType())) {
-            blockData = block.getBlockData();
-        }
-
-        var cacheKey = new UniqueBlock(block.getType(), blockData, trigger);
+        var cacheKey = new UniqueBlock(block.getType(), block.getBlockData().getAsString(true), trigger);
         SkillSource<BlockXpSource> cachedSource = sourceCache.get(cacheKey);
         // Cache hit
         if (cachedSource != null) {
-            return cachedSource == NO_SOURCE ? null : cachedSource;
+            return cachedSource;
         }
 
         List<SkillSource<BlockXpSource>> sources = plugin.getSkillManager().getSourcesOfType(BlockXpSource.class);
@@ -311,7 +272,8 @@ public class BlockLeveler extends SourceLeveler {
             }
 
             // Check block state
-            if (source.getStates() != null) {
+            boolean ignoreStates = isReplaceCheck && source.checkReplaceAllStates();
+            if (!ignoreStates && source.getStates() != null) {
                 // Skip if no state matches
                 if (!matchesStates(block, source.getStates())) {
                     continue;
@@ -321,7 +283,6 @@ public class BlockLeveler extends SourceLeveler {
             sourceCache.put(cacheKey, entry);
             return entry;
         }
-        sourceCache.put(cacheKey, NO_SOURCE);
         return null;
     }
 
@@ -337,23 +298,14 @@ public class BlockLeveler extends SourceLeveler {
     }
 
     private boolean matchesMaterial(BlockXpSource candidate, Block block) {
-        Material blockType = block.getType();
-        Material[] materials = sourceMaterialsCache.computeIfAbsent(candidate, s -> {
-            String[] blocks = s.getBlocks();
-            Material[] mats = new Material[blocks.length];
-            for (int i = 0; i < blocks.length; i++) {
-                try {
-                    mats[i] = Material.valueOf(blocks[i].toUpperCase(Locale.ROOT));
-                } catch (IllegalArgumentException e) {
-                    mats[i] = Material.AIR;
-                }
+        boolean blockMatches = false;
+        for (String blockName : candidate.getBlocks()) {
+            if (block.getType().name().equalsIgnoreCase(blockName)) {
+                blockMatches = true;
+                break;
             }
-            return mats;
-        });
-        for (Material mat : materials) {
-            if (mat == blockType) return true;
         }
-        return false;
+        return blockMatches;
     }
 
     private boolean matchesStates(Block block, BlockXpSource.BlockXpSourceState[] states) {
@@ -384,19 +336,18 @@ public class BlockLeveler extends SourceLeveler {
     }
 
     private List<SkillSource<BlockXpSource>> filterByTrigger(List<SkillSource<BlockXpSource>> sources, BlockXpSource.BlockTriggers trigger) {
-        return sourcesByTriggerCache.computeIfAbsent(trigger, t -> {
-            List<SkillSource<BlockXpSource>> filtered = new ArrayList<>();
-            for (SkillSource<BlockXpSource> entry : sources) {
-                BlockXpSource source = entry.source();
-                for (BlockXpSource.BlockTriggers sourceTrigger : source.getTriggers()) {
-                    if (sourceTrigger == t) {
-                        filtered.add(entry);
-                        break;
-                    }
+        List<SkillSource<BlockXpSource>> filtered = new ArrayList<>();
+        for (SkillSource<BlockXpSource> entry : sources) {
+            BlockXpSource source = entry.source();
+            // Check if trigger matches any of the source triggers
+            for (BlockXpSource.BlockTriggers sourceTrigger : source.getTriggers()) {
+                if (sourceTrigger == trigger) {
+                    filtered.add(entry);
+                    break;
                 }
             }
-            return filtered;
-        });
+        }
+        return filtered;
     }
 
     public static Map<String, Object> parseFromBlockData(String input) {
@@ -475,7 +426,7 @@ public class BlockLeveler extends SourceLeveler {
         return value;
     }
 
-    public record UniqueBlock(Material material, BlockData blockData, BlockTriggers trigger) {
+    public record UniqueBlock(Material material, String blockData, BlockTriggers trigger) {
 
     }
 

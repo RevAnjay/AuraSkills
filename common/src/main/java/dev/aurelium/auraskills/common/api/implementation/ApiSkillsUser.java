@@ -2,8 +2,10 @@ package dev.aurelium.auraskills.common.api.implementation;
 
 import dev.aurelium.auraskills.api.ability.Ability;
 import dev.aurelium.auraskills.api.mana.ManaAbility;
+import dev.aurelium.auraskills.api.skill.Multiplier;
 import dev.aurelium.auraskills.api.skill.Skill;
 import dev.aurelium.auraskills.api.source.XpSource;
+import dev.aurelium.auraskills.api.stat.ReloadableIdentifier;
 import dev.aurelium.auraskills.api.stat.Stat;
 import dev.aurelium.auraskills.api.stat.StatModifier;
 import dev.aurelium.auraskills.api.trait.Trait;
@@ -149,8 +151,18 @@ public class ApiSkillsUser implements SkillsUser {
     }
 
     @Override
+    public void addStatModifier(StatModifier statModifier, boolean reload) {
+        user.addStatModifier(statModifier, reload);
+    }
+
+    @Override
     public void removeStatModifier(String name) {
         user.removeStatModifier(name);
+    }
+
+    @Override
+    public void removeStatModifier(String name, boolean reload) {
+        user.removeStatModifier(name, reload);
     }
 
     @Override
@@ -169,8 +181,18 @@ public class ApiSkillsUser implements SkillsUser {
     }
 
     @Override
+    public void addTraitModifier(TraitModifier traitModifier, boolean reload) {
+        user.addTraitModifier(traitModifier, reload);
+    }
+
+    @Override
     public void removeTraitModifier(String name) {
         user.removeTraitModifier(name);
+    }
+
+    @Override
+    public void removeTraitModifier(String name, boolean reload) {
+        user.removeTraitModifier(name, reload);
     }
 
     @Override
@@ -278,4 +300,23 @@ public class ApiSkillsUser implements SkillsUser {
         return future;
     }
 
+    @Override
+    public void reloadStatOrTrait(ReloadableIdentifier statOrTrait) {
+        plugin.getStatManager().reload(user, statOrTrait);
+    }
+
+    @Override
+    public Map<String, Multiplier> getMultipliers() {
+        return user.getMultipliers();
+    }
+
+    @Override
+    public void addMultiplier(Multiplier multiplier) {
+        user.addMultiplier(multiplier);
+    }
+
+    @Override
+    public void removeMultiplier(String name) {
+        user.removeMultiplier(name);
+    }
 }

@@ -71,7 +71,7 @@ public class NexoHook extends Hook implements Listener {
         if (blockLeveler == null) {
             blockLeveler = plugin.getLevelManager().getLeveler(BlockLeveler.class);
         }
-        blockLeveler.handleBreak(player, block, event, trait -> () -> getUniqueNexoDrops(player, event.getDrop()));
+        blockLeveler.handleBreak(player, block, event, trait -> getUniqueNexoDrops(player, event.getDrop()));
     }
 
     @EventHandler
@@ -132,7 +132,7 @@ public class NexoHook extends Hook implements Listener {
             }
 
             // May be modified: blocks, states
-            return new BlockSource(plugin, block.getValues(), blocks, block.getMaxBlocks(), block.getTriggers(), block.checkReplace(),
+            return new BlockSource(plugin, block.getValues(), blocks, block.getMaxBlocks(), block.getTriggers(), block.checkReplace(), block.checkReplaceAllStates(),
                     states, block.getAfterStates(), block.getStateMultiplier(), block.getSupportBlockType(), block.allowBoneMeal());
         });
     }
