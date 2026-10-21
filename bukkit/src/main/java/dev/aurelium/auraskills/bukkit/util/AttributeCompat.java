@@ -13,25 +13,35 @@ public class AttributeCompat {
     public static Attribute luck;
 
     static {
-        if (VersionUtils.isAtLeastVersion(21, 2)) {
-            maxHealth = fromRegistry("max_health");
-            movementSpeed = fromRegistry("movement_speed");
-            attackDamage = fromRegistry("attack_damage");
-            attackSpeed = fromRegistry("attack_speed");
-            luck = fromRegistry("luck");
-        } else {
-            maxHealth = fromRegistry("generic.max_health");
-            movementSpeed = fromRegistry("generic.movement_speed");
-            attackDamage = fromRegistry("generic.attack_damage");
-            attackSpeed = fromRegistry("generic.attack_speed");
-            luck = fromRegistry("generic.luck");
+        try {
+            if (VersionUtils.isAtLeastVersion(21, 2)) {
+                maxHealth = fromRegistry("max_health", "generic.max_health");
+                movementSpeed = fromRegistry("movement_speed", "generic.movement_speed");
+                attackDamage = fromRegistry("attack_damage", "generic.attack_damage");
+                attackSpeed = fromRegistry("attack_speed", "generic.attack_speed");
+                luck = fromRegistry("luck", "generic.luck");
+            } else {
+                maxHealth = fromRegistry("generic.max_health", "max_health");
+                movementSpeed = fromRegistry("generic.movement_speed", "movement_speed");
+                attackDamage = fromRegistry("generic.attack_damage", "attack_damage");
+                attackSpeed = fromRegistry("generic.attack_speed", "attack_speed");
+                luck = fromRegistry("generic.luck", "luck");
+            }
+        } catch (Throwable ignored) {
         }
     }
 
-    private static Attribute fromRegistry(String key) {
-        Attribute attribute = Registry.ATTRIBUTE.get(NamespacedKey.minecraft(key));
-        if (attribute == null) {
-            throw new IllegalArgumentException("Could not find attribute with key " + key + " in Attribute registry");
+    private static Attribute fromRegistry(String key, String fallbackKey) {
+        Attribute attribute = null;
+        try {
+            attribute = Registry.ATTRIBUTE.get(NamespacedKey.minecraft(key));
+        } catch (Throwable ignored) {
+        }
+        if (attribute == null && fallbackKey != null) {
+            try {
+                attribute = Registry.ATTRIBUTE.get(NamespacedKey.minecraft(fallbackKey));
+            } catch (Throwable ignored) {
+            }
         }
         return attribute;
     }
