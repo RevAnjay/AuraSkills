@@ -47,7 +47,7 @@ public abstract class HookRegistrar {
                 manager.registerHook(hook.getClass(), hook);
 
                 plugin.logger().info("Successfully registered hook " + hookType.getPluginName());
-            } catch (HookRegistrationException e) {
+            } catch (Throwable e) {
                 plugin.logger().warn("Failed to register hook " + hookType.getPluginName() + ": " + e.getMessage());
                 e.printStackTrace();
             }
@@ -56,20 +56,20 @@ public abstract class HookRegistrar {
 
     protected Hook createHook(HookType type, ConfigurationNode config) {
         Class<? extends Hook> hookClass = type.getHookClass();
-
-        Constructor<?>[] constructors = hookClass.getDeclaredConstructors();
-        if (constructors.length == 0) {
-            throw new HookRegistrationException("Hook does not have a declared constructor");
-        }
-        Constructor<?> constructor = constructors[0];
-        if (constructor == null) {
-            throw new HookRegistrationException("Hook does not have a declared constructor");
-        }
         try {
+            Constructor<?>[] constructors = hookClass.getDeclaredConstructors();
+            if (constructors.length == 0) {
+                throw new HookRegistrationException("Hook does not have a declared constructor");
+            }
+            Constructor<?> constructor = constructors[0];
+            if (constructor == null) {
+                throw new HookRegistrationException("Hook does not have a declared constructor");
+            }
             return (Hook) constructor.newInstance(plugin, config);
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
-            e.printStackTrace();
-            throw new HookRegistrationException("Failed to construct hook using reflection: " + e.getMessage());
+        } catch (HookRegistrationException e) {
+            throw e;
+        } catch (Throwable e) {
+            throw new HookRegistrationException("Failed to construct hook using reflection: " + e.getMessage(), e);
         }
     }
 

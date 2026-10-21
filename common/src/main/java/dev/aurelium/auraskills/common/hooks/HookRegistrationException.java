@@ -6,4 +6,8 @@ public class HookRegistrationException extends RuntimeException {
         super(message);
     }
 
+    public HookRegistrationException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
 }

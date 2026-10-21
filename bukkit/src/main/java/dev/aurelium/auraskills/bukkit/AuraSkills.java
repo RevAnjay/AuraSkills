@@ -337,7 +337,9 @@ public class AuraSkills extends JavaPlugin implements AuraSkillsPlugin {
             regionManager.saveAllRegions(false, true);
             regionManager.clearRegionMap();
         }
-        leaderboardManager.getLeaderboardExclusion().saveToFile(); // Save excluded leaderboard players
+        if (leaderboardManager != null && leaderboardManager.getLeaderboardExclusion() != null) {
+            leaderboardManager.getLeaderboardExclusion().saveToFile(); // Save excluded leaderboard players
+        }
         try {
             backupAutomatically();
         } catch (Exception e) {
