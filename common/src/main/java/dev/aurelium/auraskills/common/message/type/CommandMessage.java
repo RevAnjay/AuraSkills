@@ -158,6 +158,8 @@ public enum CommandMessage implements MessageKey {
     SAVE_SAVED,
     SKILL_RESET_RESET_ALL(Command.SKILL_RESET, "reset_all"),
     SKILL_RESET_RESET_SKILL(Command.SKILL_RESET, "reset_skill"),
+    SKILL_ADDLEVEL_WASTED,
+    SKILL_ADDLEVEL_MAX,
     SKILL_SETALL_SET,
     SKILL_SETLEVEL_SET,
     SKILL_AT_LEAST("skill.at_least"),

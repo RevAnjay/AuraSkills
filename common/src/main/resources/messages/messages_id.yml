@@ -522,6 +522,9 @@ commands:
     mysql_not_enabled: "<yellow>MySQL tidak Active, simpan file setidaknya!"
     saved: "<green>Data skill tersimpan!"
   skill:
+    addlevel:
+      wasted: "<yellow>{wasted} <gray>level dari <aqua>{skill} <gray>untuk pemain <gold>{player} <gray>terbuang karena level dibatasi oleh level maksimum."
+      max: "<red>Gagal menambahkan level: <aqua>{skill} <gray>untuk pemain <gold>{player} <gray>sudah mencapai level maksimum."
     setall:
       set: "<gray>Semua level skill diatur ke level <aqua>{level} <gray>untuk pemain <gold>{player}"
     setlevel:
@@ -591,6 +594,16 @@ menus:
     next_page_click: "Klik untuk pergi ke halaman berikutnya"
     previous_page: "Halaman Sebelumnya"
     previous_page_click: "Klik untuk pergi ke halaman sebelumnya"
+    addlevel_confirm_title: "Tambah Level Skill"
+    addlevel_confirm_info_name: "Penambahan Level"
+    addlevel_confirm_player: "Pemain"
+    addlevel_confirm_skill: "Skill"
+    addlevel_confirm_current: "Level Saat Ini"
+    addlevel_confirm_new: "Level Baru"
+    addlevel_confirm_wasted: "Terbuang"
+    addlevel_confirm_info_click: "Konfirmasi untuk menerapkan level yang dibatasi."
+    addlevel_confirm_confirm: "Konfirmasi"
+    addlevel_confirm_cancel: "Batal"
   skills:
     skills_title: "Skill Anda"
     your_skills: "Skill Anda"
