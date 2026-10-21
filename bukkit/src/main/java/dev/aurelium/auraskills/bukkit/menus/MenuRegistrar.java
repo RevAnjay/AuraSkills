@@ -25,8 +25,6 @@ public class MenuRegistrar {
 
     public void register() {
         ContextManager cm = slate.getContextManager();
-        // Register the add-level close tracker as a Bukkit listener (treats closing the GUI as cancel)
-        plugin.getServer().getPluginManager().registerEvents(new AddLevelConfirmTracker(plugin), plugin);
         // Register contexts
         cm.registerContext("Skill", new SkillContext(plugin));
         cm.registerContext("Stat", new StatContext(plugin));
@@ -35,6 +33,7 @@ public class MenuRegistrar {
         cm.registerContext("Ability", new AbilityContext(plugin));
         cm.registerContext("ManaAbility", new ManaAbilityContext(plugin));
         cm.registerContext("Trait", new TraitContext(plugin));
+
         // Build menus
         buildMenus();
     }
@@ -55,7 +54,7 @@ public class MenuRegistrar {
         buildMenu("sources", menu -> new SourcesMenu(plugin).build(menu));
         buildMenu("abilities", menu -> new AbilitiesMenu(plugin).build(menu));
         buildMenu("stat_info", menu -> new StatInfoMenu(plugin).build(menu));
-        buildMenu("skill_addlevel_confirm", menu -> new AddLevelConfirmMenu(plugin).build(menu));
+
         for (String nonDefault : ((ApiMenuManager) plugin.getApiBukkit().getMenuManager()).getNonDefaultMenuNames()) {
             buildMenu(nonDefault, menu -> {}); // Empty consumer passed since custom builder is applied in buildMenu
         }

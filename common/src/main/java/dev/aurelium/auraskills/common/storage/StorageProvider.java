@@ -179,12 +179,9 @@ public abstract class StorageProvider {
     }
 
     protected void removeUserLock(UUID uuid, ReentrantReadWriteLock lock) {
-        userLocks.computeIfPresent(uuid, (id, existingLock) -> {
-            if (existingLock == lock && existingLock.getReadLockCount() == 0 && !existingLock.isWriteLocked()) {
-                return null;
-            }
-            return existingLock;
-        });
+        if (lock.getReadLockCount() == 0 && !lock.isWriteLocked()) {
+            userLocks.remove(uuid);
+        }
     }
 
 }

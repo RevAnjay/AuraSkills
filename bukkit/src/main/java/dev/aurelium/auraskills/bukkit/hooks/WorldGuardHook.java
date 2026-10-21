@@ -20,9 +20,6 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import java.util.concurrent.TimeUnit;
 
 import java.util.*;
 
@@ -32,11 +29,6 @@ public class WorldGuardHook extends Hook {
     private RegionContainer container;
     private List<String> blockedRegions;
     private List<String> blockedCheckBlockReplaceRegions;
-    private List<String> checkedWorlds;
-    private final Cache<String, Boolean> isBlockedCache = CacheBuilder.newBuilder()
-            .expireAfterWrite(50, TimeUnit.MILLISECONDS)
-            .maximumSize(1000)
-            .build();
 
     public WorldGuardHook(AuraSkills plugin, ConfigurationNode config) {
         super(plugin, config);
@@ -54,27 +46,9 @@ public class WorldGuardHook extends Hook {
         blockedRegions.addAll(config.node("blocked_regions").getList(String.class, new ArrayList<>()));
         blockedCheckBlockReplaceRegions = new LinkedList<>();
         blockedCheckBlockReplaceRegions.addAll(config.node("blocked_check_replace_regions").getList(String.class, new ArrayList<>()));
-        checkedWorlds = new LinkedList<>();
-        checkedWorlds.addAll(config.node("checked_worlds").getList(String.class, new ArrayList<>()));
-        isBlockedCache.invalidateAll();
     }
 
     public boolean isBlocked(Location location, Player player, FlagKey flagKey) {
-        if (location.getWorld() == null) return false;
-        if (!checkedWorlds.isEmpty() && !checkedWorlds.contains(location.getWorld().getName())) {
-            return false;
-        }
-        String key = location.getWorld().getName() + ":" + location.getBlockX() + ":" + location.getBlockY() + ":" + location.getBlockZ() + ":" + player.getUniqueId() + ":" + flagKey.name();
-        Boolean cached = isBlockedCache.getIfPresent(key);
-        if (cached != null) {
-            return cached;
-        }
-        boolean result = isBlockedUncached(location, player, flagKey);
-        isBlockedCache.put(key, result);
-        return result;
-    }
-
-    private boolean isBlockedUncached(Location location, Player player, FlagKey flagKey) {
         if (isInBlockedRegion(location)) {
             return true;
         }
@@ -82,21 +56,6 @@ public class WorldGuardHook extends Hook {
     }
 
     public boolean isBlocked(Location location, Player player, Skill skill) {
-        if (location.getWorld() == null) return false;
-        if (!checkedWorlds.isEmpty() && !checkedWorlds.contains(location.getWorld().getName())) {
-            return false;
-        }
-        String key = location.getWorld().getName() + ":" + location.getBlockX() + ":" + location.getBlockY() + ":" + location.getBlockZ() + ":" + player.getUniqueId() + ":" + skill.getId().toString();
-        Boolean cached = isBlockedCache.getIfPresent(key);
-        if (cached != null) {
-            return cached;
-        }
-        boolean result = isBlockedUncached(location, player, skill);
-        isBlockedCache.put(key, result);
-        return result;
-    }
-
-    private boolean isBlockedUncached(Location location, Player player, Skill skill) {
         if (isInBlockedRegion(location)) {
             return true;
         }
@@ -111,12 +70,6 @@ public class WorldGuardHook extends Hook {
     }
 
     public boolean isInBlockedCheckRegion(Location location) {
-        if (location.getWorld() == null) {
-            return false;
-        }
-        if (!checkedWorlds.isEmpty() && !checkedWorlds.contains(location.getWorld().getName())) {
-            return false;
-        }
         return isInRegionList(location, blockedCheckBlockReplaceRegions);
     }
 

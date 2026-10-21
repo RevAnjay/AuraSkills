@@ -55,15 +55,8 @@ public class Absorption extends ReadiedManaAbility {
 
         if (target != null) {
             User user = plugin.getUser(target);
-            if (user == null || user.getManaAbilityLevel(manaAbility) <= 0) {
-                return;
-            }
-            boolean active = isActivated(user);
-            if (!active && !isReady(user)) {
-                return;
-            }
 
-            if (user.getAbilityData(manaAbility).getBoolean("activated") && active) {
+            if (user.getAbilityData(manaAbility).getBoolean("activated") && isActivated(user)) {
                 handleAbsorbedHit(event, target, user);
             } else if (checkActivation(target)) {
                 handleAbsorbedHit(event, target, user);

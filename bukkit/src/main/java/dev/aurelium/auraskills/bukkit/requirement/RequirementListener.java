@@ -95,13 +95,8 @@ public class RequirementListener implements Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onBlockBreak(BlockBreakEvent event) {
         if (event.isCancelled()) return;
-        boolean preventToolUse = plugin.configBoolean(Option.REQUIREMENT_ITEM_PREVENT_TOOL_USE);
-        boolean blocksEnabled = plugin.configBoolean(Option.REQUIREMENT_BLOCKS_ENABLED);
-        if (!preventToolUse && !blocksEnabled) return;
-
         if (plugin.getWorldManager().isInDisabledWorld(event.getPlayer().getLocation())) return;
-
-        if (preventToolUse) {
+        if (plugin.configBoolean(Option.REQUIREMENT_ITEM_PREVENT_TOOL_USE)) {
             Player player = event.getPlayer();
             ItemStack item = player.getInventory().getItemInMainHand();
             if (item.getType() != Material.AIR) {
@@ -109,21 +104,14 @@ public class RequirementListener implements Listener {
             }
         }
 
-        if (blocksEnabled) {
-            checkBlockRequirements(event.getPlayer(), event.getBlock().getType(), event);
-        }
+        checkBlockRequirements(event.getPlayer(), event.getBlock().getType(), event);
     }
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onPlace(BlockPlaceEvent event) {
         if (event.isCancelled()) return;
-        boolean preventBlockPlace = plugin.configBoolean(Option.REQUIREMENT_ITEM_PREVENT_BLOCK_PLACE);
-        boolean blocksEnabled = plugin.configBoolean(Option.REQUIREMENT_BLOCKS_ENABLED);
-        if (!preventBlockPlace && !blocksEnabled) return;
-
         if (plugin.getWorldManager().isInDisabledWorld(event.getPlayer().getLocation())) return;
-
-        if (preventBlockPlace) {
+        if (plugin.configBoolean(Option.REQUIREMENT_ITEM_PREVENT_BLOCK_PLACE)) {
             Player player = event.getPlayer();
             ItemStack item = event.getItemInHand();
             if (item.getType() != Material.AIR) {
@@ -131,15 +119,12 @@ public class RequirementListener implements Listener {
             }
         }
 
-        if (blocksEnabled) {
-            checkBlockRequirements(event.getPlayer(), event.getBlock().getType(), event);
-        }
+        checkBlockRequirements(event.getPlayer(), event.getBlock().getType(), event);
     }
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onHarvest(PlayerHarvestBlockEvent event) {
         if (event.isCancelled()) return;
-        if (!plugin.configBoolean(Option.REQUIREMENT_BLOCKS_ENABLED)) return;
         if (plugin.getWorldManager().isInDisabledWorld(event.getPlayer().getLocation())) return;
 
         checkBlockRequirements(event.getPlayer(), event.getHarvestedBlock().getType(), event);
@@ -148,13 +133,13 @@ public class RequirementListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onAttack(EntityDamageByEntityEvent event) {
         if (event.isCancelled()) return;
-        if (!plugin.configBoolean(Option.REQUIREMENT_ITEM_PREVENT_WEAPON_USE)) return;
-
-        if (event.getDamager() instanceof Player player) {
-            if (plugin.getWorldManager().isInDisabledWorld(player.getLocation())) return;
-            ItemStack item = player.getInventory().getItemInMainHand();
-            if (item.getType() == Material.AIR) return;
-            checkItemRequirements(player, item, event);
+        if (plugin.configBoolean(Option.REQUIREMENT_ITEM_PREVENT_WEAPON_USE)) {
+            if (event.getDamager() instanceof Player player) {
+                if (plugin.getWorldManager().isInDisabledWorld(player.getLocation())) return;
+                ItemStack item = player.getInventory().getItemInMainHand();
+                if (item.getType() == Material.AIR) return;
+                checkItemRequirements(player, item, event);
+            }
         }
     }
 
@@ -174,9 +159,9 @@ public class RequirementListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onInteract(PlayerInteractEvent event) {
-        if (!plugin.configBoolean(Option.REQUIREMENT_ITEM_PREVENT_INTERACT)) return;
-        if (event.useItemInHand() == Event.Result.DENY) return;
         if (plugin.getWorldManager().isInDisabledWorld(event.getPlayer().getLocation())) return;
+        if (event.useItemInHand() == Event.Result.DENY) return;
+        if (!plugin.configBoolean(Option.REQUIREMENT_ITEM_PREVENT_INTERACT)) return;
 
         ItemStack item = event.getItem();
         if (item == null) return;

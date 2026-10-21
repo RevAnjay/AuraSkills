@@ -1,8 +1,5 @@
 <h1 style="text-align:center;">AuraSkills</h1>
 
-> [!NOTE]
-> This is a custom fork created for my server.
-
 <p style="text-align:center;">
 The ultra-versatile Minecraft RPG skills plugin
 </p>

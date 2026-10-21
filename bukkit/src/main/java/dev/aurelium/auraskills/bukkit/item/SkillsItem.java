@@ -18,7 +18,6 @@ import dev.aurelium.auraskills.bukkit.AuraSkills;
 import dev.aurelium.auraskills.bukkit.mana.ManaAbilityProvider;
 import dev.aurelium.auraskills.bukkit.requirement.GlobalRequirement;
 import dev.aurelium.auraskills.bukkit.requirement.Requirements;
-import dev.aurelium.auraskills.bukkit.util.PdcUtils;
 import dev.aurelium.auraskills.bukkit.util.VersionUtils;
 import dev.aurelium.auraskills.common.config.Option;
 import dev.aurelium.auraskills.common.message.type.CommandMessage;
@@ -35,7 +34,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -46,24 +44,16 @@ public class SkillsItem {
 
     private final AuraSkills plugin;
     private final ItemStack item;
-    private ItemMeta meta;
+    private final ItemMeta meta;
 
     public SkillsItem(ItemStack item, AuraSkills plugin) {
         this.item = item.clone();
+        this.meta = this.item.getItemMeta();
         this.plugin = plugin;
     }
 
-    private ItemMeta getMeta() {
-        if (meta == null) {
-            meta = this.item.getItemMeta();
-        }
-        return meta;
-    }
-
     public ItemStack getItem() {
-        if (meta != null) {
-            item.setItemMeta(meta);
-        }
+        item.setItemMeta(meta);
         return item;
     }
 
@@ -72,26 +62,6 @@ public class SkillsItem {
     }
 
     public List<StatModifier> getStatModifiers(ModifierType type, boolean offhand) {
-        if (!item.hasItemMeta()) {
-            return Collections.emptyList();
-        }
-        PersistentDataContainer pdc = PdcUtils.getPdc(item);
-        if (pdc != null) {
-            String name = getContainerName(MetaType.MODIFIER, type);
-            NamespacedKey metaKey = new NamespacedKey(plugin, name);
-            boolean hasModifiers = false;
-            if (VersionUtils.isAtLeastVersion(20, 4)) {
-                hasModifiers = pdc.has(metaKey, PersistentDataType.LIST.dataContainers())
-                        || pdc.has(metaKey, PersistentDataType.TAG_CONTAINER);
-            } else {
-                hasModifiers = pdc.has(metaKey, PersistentDataType.TAG_CONTAINER_ARRAY)
-                        || pdc.has(metaKey, PersistentDataType.TAG_CONTAINER);
-            }
-            if (!hasModifiers) {
-                return Collections.emptyList();
-            }
-        }
-        getMeta();
         List<StatModifier> modifiers = new ArrayList<>();
         if (isContainerList(MetaType.MODIFIER, type)) {
             List<PersistentDataContainer> containers = getContainerList(MetaType.MODIFIER, type);
@@ -142,26 +112,6 @@ public class SkillsItem {
     }
 
     public List<TraitModifier> getTraitModifiers(ModifierType type, boolean offhand) {
-        if (!item.hasItemMeta()) {
-            return Collections.emptyList();
-        }
-        PersistentDataContainer pdc = PdcUtils.getPdc(item);
-        if (pdc != null) {
-            String name = getContainerName(MetaType.TRAIT_MODIFIER, type);
-            NamespacedKey metaKey = new NamespacedKey(plugin, name);
-            boolean hasModifiers = false;
-            if (VersionUtils.isAtLeastVersion(20, 4)) {
-                hasModifiers = pdc.has(metaKey, PersistentDataType.LIST.dataContainers())
-                        || pdc.has(metaKey, PersistentDataType.TAG_CONTAINER);
-            } else {
-                hasModifiers = pdc.has(metaKey, PersistentDataType.TAG_CONTAINER_ARRAY)
-                        || pdc.has(metaKey, PersistentDataType.TAG_CONTAINER);
-            }
-            if (!hasModifiers) {
-                return Collections.emptyList();
-            }
-        }
-        getMeta();
         List<TraitModifier> modifiers = new ArrayList<>();
         if (isContainerList(MetaType.TRAIT_MODIFIER, type)) {
             List<PersistentDataContainer> containers = getContainerList(MetaType.TRAIT_MODIFIER, type);
@@ -216,7 +166,6 @@ public class SkillsItem {
 
     // MetaType must be MODIFIER or TRAIT_MODIFIER
     public void addModifier(MetaType metaType, ModifierType modifierType, NamespaceIdentified identified, double value, Operation operation) {
-        getMeta();
         if (isTagContainer(metaType, modifierType)) {
             convertModifiersToContainerList();
         }
@@ -235,7 +184,6 @@ public class SkillsItem {
 
     // MetaType must be MODIFIER or TRAIT_MODIFIER
     public void removeModifier(MetaType metaType, ModifierType modifierType, NamespaceIdentified identified) {
-        getMeta();
         if (isTagContainer(metaType, modifierType)) {
             convertModifiersToContainerList();
         }
@@ -309,7 +257,6 @@ public class SkillsItem {
     }
 
     public void removeAll(MetaType metaType, ModifierType modifierType) {
-        getMeta();
         PersistentDataContainer parent = meta.getPersistentDataContainer();
         parent.remove(new NamespacedKey(plugin, getContainerName(metaType, modifierType)));
     }
@@ -319,18 +266,6 @@ public class SkillsItem {
     }
 
     public List<Multiplier> getMultipliers(ModifierType type, boolean offhand) {
-        if (!item.hasItemMeta()) {
-            return Collections.emptyList();
-        }
-        PersistentDataContainer pdc = PdcUtils.getPdc(item);
-        if (pdc != null) {
-            String name = getContainerName(MetaType.MULTIPLIER, type);
-            NamespacedKey metaKey = new NamespacedKey(plugin, name);
-            if (!pdc.has(metaKey, PersistentDataType.TAG_CONTAINER)) {
-                return Collections.emptyList();
-            }
-        }
-        getMeta();
         PersistentDataContainer container = getContainer(MetaType.MULTIPLIER, type);
         List<Multiplier> multipliers = new ArrayList<>();
 
@@ -350,14 +285,12 @@ public class SkillsItem {
     }
 
     public void addMultiplier(ModifierType type, @Nullable Skill skill, double value) {
-        getMeta();
         PersistentDataContainer container = getContainer(MetaType.MULTIPLIER, type);
         container.set(getSkillKey(skill), PersistentDataType.DOUBLE, value);
         saveTagContainer(container, MetaType.MULTIPLIER, type);
     }
 
     public void removeMultiplier(ModifierType type, Skill skill) {
-        getMeta();
         PersistentDataContainer container = getContainer(MetaType.MULTIPLIER, type);
         container.remove(getSkillKey(skill));
         saveTagContainer(container, MetaType.MULTIPLIER, type);
@@ -365,18 +298,6 @@ public class SkillsItem {
     }
 
     public Map<Skill, Integer> getRequirements(ModifierType type) {
-        if (!item.hasItemMeta()) {
-            return Collections.emptyMap();
-        }
-        PersistentDataContainer pdc = PdcUtils.getPdc(item);
-        if (pdc != null) {
-            String name = getContainerName(MetaType.REQUIREMENT, type);
-            NamespacedKey metaKey = new NamespacedKey(plugin, name);
-            if (!pdc.has(metaKey, PersistentDataType.TAG_CONTAINER)) {
-                return Collections.emptyMap();
-            }
-        }
-        getMeta();
         PersistentDataContainer container = getContainer(MetaType.REQUIREMENT, type);
         Map<Skill, Integer> requirements = new ConcurrentHashMap<>();
 
@@ -395,7 +316,6 @@ public class SkillsItem {
     }
 
     public void addRequirement(ModifierType type, Skill skill, int level) {
-        getMeta();
         PersistentDataContainer container = getContainer(MetaType.REQUIREMENT, type);
         NamespacedKey key = new NamespacedKey(plugin, skill.getId().toString());
         container.set(key, PersistentDataType.INTEGER, level);
@@ -403,7 +323,6 @@ public class SkillsItem {
     }
 
     public void removeRequirement(ModifierType type, Skill skill) {
-        getMeta();
         PersistentDataContainer container = getContainer(MetaType.REQUIREMENT, type);
         NamespacedKey key = new NamespacedKey(plugin, skill.getId().toString());
         container.remove(key);
@@ -412,14 +331,12 @@ public class SkillsItem {
     }
 
     public void addIgnore() {
-        getMeta();
         PersistentDataContainer container = meta.getPersistentDataContainer();
         NamespacedKey key = new NamespacedKey(plugin, ManaAbilityProvider.IGNORE_INTERACT_KEY);
         container.set(key, PersistentDataType.BYTE, (byte) 1);
     }
 
     public void removeIgnore() {
-        getMeta();
         PersistentDataContainer container = meta.getPersistentDataContainer();
         NamespacedKey key = new NamespacedKey(plugin, ManaAbilityProvider.IGNORE_INTERACT_KEY);
         container.remove(key);
@@ -476,7 +393,7 @@ public class SkillsItem {
             }
         }
         // Check requirements on item
-        for (Map.Entry<Skill, Integer> entry : itemRequirements.entrySet()) {
+        for (Map.Entry<Skill, Integer> entry : getRequirements(type).entrySet()) {
             if (user.getSkillLevel(entry.getKey()) < entry.getValue()) {
                 return false;
             }
@@ -495,7 +412,6 @@ public class SkillsItem {
     }
 
     public void addModifierLore(ModifierType type, NamespaceIdentified identified, double value, Operation operation, Locale locale) {
-        getMeta();
         List<String> lore;
         if (meta.getLore() != null) {
             if (!meta.getLore().isEmpty()) lore = meta.getLore();
@@ -547,7 +463,6 @@ public class SkillsItem {
     }
 
     public void removeModifierLore(NamespaceIdentified identified, Locale locale) {
-        getMeta();
         List<String> lore = meta.getLore();
         if (lore == null || lore.isEmpty()) return;
 
@@ -562,7 +477,6 @@ public class SkillsItem {
     }
 
     public void addMultiplierLore(ModifierType type, Skill skill, double value, Locale locale) {
-        getMeta();
         List<String> lore;
         if (meta.getLore() != null) {
             if (!meta.getLore().isEmpty()) {
@@ -623,7 +537,6 @@ public class SkillsItem {
     }
 
     public void addRequirementLore(ModifierType type, Skill skill, int level, Locale locale) {
-        getMeta();
         String text = TextUtil.replace(plugin.getMsg(CommandMessage.valueOf(type.name() + "_REQUIREMENT_ADD_LORE"), locale), "{skill}", skill.getDisplayName(locale), "{level}", String.valueOf(level));
         List<String> lore;
         if (meta.hasLore()) lore = meta.getLore();
@@ -635,7 +548,6 @@ public class SkillsItem {
     }
 
     public void removeRequirementLore(Skill skill, Locale locale) {
-        getMeta();
         List<String> lore = meta.getLore();
         if (lore != null) {
             for (int i = 0; i < lore.size(); i++) {

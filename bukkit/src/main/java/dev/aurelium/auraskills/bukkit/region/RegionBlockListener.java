@@ -149,12 +149,9 @@ public class RegionBlockListener implements Listener {
     private void checkSupportBelow(Block block) {
         // Check if the block above requires support
         Block above = block.getRelative(BlockFace.UP);
-        if (!regionManager.isPlacedBlock(above)) {
-            return;
-        }
         SkillSource<BlockXpSource> skillSource = blockLeveler.getSource(above, BlockXpSource.BlockTriggers.BREAK);
         BlockXpSource source = skillSource == null ? null : skillSource.source();
-        if (source != null && source.requiresSupportBlock(BlockXpSource.SupportBlockType.BELOW)) {
+        if (source != null && source.requiresSupportBlock(BlockXpSource.SupportBlockType.BELOW) && regionManager.isPlacedBlock(above)) {
             plugin.getScheduler().scheduleAtLocation(above.getLocation(), () -> {
                 // Remove if block was destroyed
                 if (blockLeveler.isDifferentSource(above, source, BlockXpSource.BlockTriggers.BREAK)) {
@@ -168,12 +165,9 @@ public class RegionBlockListener implements Listener {
         // Check each side
         for (BlockFace face : BlockFaceUtil.getBlockSides()) {
             Block checkedBlock = block.getRelative(face);
-            if (!regionManager.isPlacedBlock(checkedBlock)) {
-                continue;
-            }
             SkillSource<BlockXpSource> skillSource = blockLeveler.getSource(checkedBlock, BlockXpSource.BlockTriggers.BREAK);
             BlockXpSource source = skillSource == null ? null : skillSource.source();
-            if (source != null && source.requiresSupportBlock(BlockXpSource.SupportBlockType.SIDE)) {
+            if (source != null && source.requiresSupportBlock(BlockXpSource.SupportBlockType.SIDE) && regionManager.isPlacedBlock(checkedBlock)) {
                 plugin.getScheduler().scheduleAtLocation(checkedBlock.getLocation(), () -> {
                     // Remove if block was destroyed
                     if (blockLeveler.isDifferentSource(checkedBlock, source, BlockXpSource.BlockTriggers.BREAK)) {

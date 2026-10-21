@@ -124,6 +124,8 @@ public abstract class ReadiedManaAbility extends ManaAbilityProvider {
 
     @EventHandler
     public void onReady(PlayerInteractEvent event) {
+        if (isDisabled()) return;
+
         // Check action is valid
         boolean valid = false;
         for (Action action : actions) {
@@ -133,33 +135,34 @@ public abstract class ReadiedManaAbility extends ManaAbilityProvider {
             }
         }
         if (!valid) return;
-
+        // Check block exclusions
+        Block block = event.getClickedBlock();
         // Match sure material matches
         Player player = event.getPlayer();
         if (!isHoldingMaterial(player)) {
             return;
         }
-
-        if (isDisabled()) return;
-
-        // Check block exclusions
-        Block block = event.getClickedBlock();
         if (block != null) {
             if (isExcludedBlock(block)) return;
         }
+        if (!isAllowReady(player, event)) {
+            return;
+        }
         User user = plugin.getUser(player);
+        ManaAbilityData data = user.getManaAbilityData(manaAbility);
+
+        Locale locale = user.getLocale();
         if (user.getManaAbilityLevel(manaAbility) <= 0) {
             return;
         }
-        ManaAbilityData data = user.getManaAbilityData(manaAbility);
-        if (data.isActivated() || data.isReady()) {
+        // Check if already activated
+        if (data.isActivated()) {
             return;
         }
-        if (!isAllowReady(player, event, user)) {
+        // Checks if already ready
+        if (data.isReady()) {
             return;
         }
-
-        Locale locale = user.getLocale();
         if (data.getCooldown() == 0) { // Ready
             data.setReady(true);
             plugin.getAbilityManager().sendMessage(player, plugin.getMsg(ManaAbilityMessage.valueOf(manaAbility.name() + "_RAISE"), locale));
@@ -185,7 +188,7 @@ public abstract class ReadiedManaAbility extends ManaAbilityProvider {
         }, readyDuration * 50, TimeUnit.MILLISECONDS);
     }
 
-    private boolean isAllowReady(Player player, PlayerInteractEvent event, User user) {
+    private boolean isAllowReady(Player player, PlayerInteractEvent event) {
         // Check if requires sneak
         if (manaAbility.optionBoolean("require_sneak", false)) {
             if (!player.isSneaking()) return false;
@@ -203,6 +206,7 @@ public abstract class ReadiedManaAbility extends ManaAbilityProvider {
             return false;
         }
         // Check permission
+        User user = plugin.getUser(player);
         return user.hasSkillPermission(manaAbility.getSkill());
     }
 

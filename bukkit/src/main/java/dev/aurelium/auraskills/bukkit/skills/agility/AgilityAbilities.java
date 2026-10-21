@@ -208,10 +208,8 @@ public class AgilityAbilities extends BukkitAbilityImpl {
     }
 
     public void removeFleeting(Player player) {
-        User user = plugin.getUser(player);
-        if (user.getTraitModifier(TraitModifiers.FLEETING.getModifierId()) == null) return;
-
         AttributeInstance attribute = player.getAttribute(AttributeCompat.maxHealth);
+
         if (attribute == null) return;
 
         double maxHealth = attribute.getValue();
@@ -237,11 +235,9 @@ public class AgilityAbilities extends BukkitAbilityImpl {
     }
 
     private void fleetingRemove(Player player, double amountRegenerated) {
-        // Optimization: skip expensive failsChecks (LuckPerms permission call)
-        // Fleeting modifier was already validated when applied in fleeting().
-        // For removal, we only need to check if the modifier exists and if health is above threshold.
-        User user = plugin.getUser(player);
-        if (user.getTraitModifier(TraitModifiers.FLEETING.getModifierId()) == null) return;
+        var ability = Abilities.FLEETING;
+
+        if (failsChecks(player, ability)) return;
 
         AttributeInstance attribute = player.getAttribute(AttributeCompat.maxHealth);
         if (attribute == null) return;

@@ -13,7 +13,10 @@ import dev.aurelium.auraskills.common.user.User;
 import dev.aurelium.auraskills.common.util.text.TextUtil;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -28,37 +31,12 @@ public abstract class ActionBarManager {
     private final Map<UUID, Integer> timer = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> currentAction = new ConcurrentHashMap<>();
     private final Map<Locale, String> idleMessageCache = new ConcurrentHashMap<>();
-    private final Map<UUID, double[]> idleValueCache = new ConcurrentHashMap<>();
-    private final Map<UUID, String> lastSentMessage = new ConcurrentHashMap<>();
-    private final Map<UUID, Long> lastSentTime = new ConcurrentHashMap<>();
-    private final Map<UUID, Long> pauseUntil = new ConcurrentHashMap<>();
-    private final Map<UUID, TaskRunnable> activeXpTasks = new ConcurrentHashMap<>();
 
     public ActionBarManager(AuraSkillsPlugin plugin, UiProvider uiProvider) {
         this.plugin = plugin;
         this.uiProvider = uiProvider;
         startTimerCountdown();
         startUpdatingIdleActionBar();
-        startPauseCleanupTask();
-    }
-
-    public void startPauseCleanupTask() {
-        var task = new TaskRunnable() {
-            @Override
-            public void run() {
-                if (pauseUntil.isEmpty()) return;
-                long now = System.currentTimeMillis();
-                Iterator<Map.Entry<UUID, Long>> it = pauseUntil.entrySet().iterator();
-                while (it.hasNext()) {
-                    Map.Entry<UUID, Long> entry = it.next();
-                    if (now >= entry.getValue()) {
-                        isPaused.remove(entry.getKey());
-                        it.remove();
-                    }
-                }
-            }
-        };
-        plugin.getScheduler().timerSync(task, 0, 10 * 50L, TimeUnit.MILLISECONDS); // Check every 10 ticks
     }
 
     public void startTimerCountdown() {
@@ -69,16 +47,15 @@ public abstract class ActionBarManager {
                     return;
                 }
 
-                if (!plugin.configBoolean(Option.ACTION_BAR_ENABLED) || timer.isEmpty()) {
-                    return;
-                }
-
-                Iterator<Map.Entry<UUID, Integer>> it = timer.entrySet().iterator();
-                while (it.hasNext()) {
-                    Map.Entry<UUID, Integer> entry = it.next();
-                    int time = entry.getValue();
-                    if (time > 0) {
-                        entry.setValue(time - 1);
+                for (User user : plugin.getUserManager().getOnlineUsers()) {
+                    UUID uuid = user.getUuid();
+                    Integer time = timer.get(uuid);
+                    if (time != null) {
+                        if (time > 0) {
+                            timer.put(uuid, time - 1);
+                        }
+                    } else {
+                        timer.put(uuid, 0);
                     }
                 }
             }
@@ -111,9 +88,6 @@ public abstract class ActionBarManager {
                         continue;
                     }
 
-                    long now = System.currentTimeMillis();
-                    Long lastTime = lastSentTime.get(uuid);
-
                     boolean formatLast = plugin.configBoolean(Option.ACTION_BAR_FORMAT_LAST);
                     Locale locale = user.getLocale();
 
@@ -130,37 +104,18 @@ public abstract class ActionBarManager {
                         }
                     }
 
-                    // Only rebuild the message when the expensive-to-read mana values changed; otherwise reuse the last one
-                    double[] raw = {user.getMana(), user.getMaxMana()};
-                    double[] lastRaw = idleValueCache.get(uuid);
-                    String last = lastSentMessage.get(uuid);
-                    if (Arrays.equals(raw, lastRaw) && last != null && lastTime != null && (now - lastTime) < 2000) {
-                        continue;
-                    }
-                    idleValueCache.put(uuid, raw);
-                    String hp = getHp(user);
-                    String maxHp = getMaxHp(user);
-                    String mana = getMana(user);
-                    String maxMana = getMaxMana(user);
-
                     String message = TextUtil.replace(base,
-                            "{hp}", hp,
-                            "{max_hp}", maxHp,
-                            "{mana}", mana,
-                            "{max_mana}", maxMana);
+                            "{hp}", getHp(user),
+                            "{max_hp}", getMaxHp(user),
+                            "{mana}", getMana(user),
+                            "{max_mana}", getMaxMana(user));
                     message = replacePlaceholderApi(user, message);
 
                     if (formatLast) {
                         message = plugin.getMessageProvider().applyFormatting(message);
                     }
 
-                    if (message.equals(last) && lastTime != null && (now - lastTime) < 2000) {
-                        continue;
-                    }
-
                     uiProvider.sendActionBar(user, message);
-                    lastSentMessage.put(uuid, message);
-                    lastSentTime.put(uuid, now);
                 }
             }
         };
@@ -194,42 +149,31 @@ public abstract class ActionBarManager {
         // Increment action number
         int thisAction = currentAction.getOrDefault(uuid, 0) + 1;
         currentAction.put(uuid, thisAction);
+        // Schedule timer task to update action bar
+        plugin.getScheduler().timerSync(
+                new TaskRunnable() {
+                    @Override
+                    public void run() {
+                        if (!isGainingXp.contains(uuid)) {
+                            cancel();
+                            return;
+                        }
+                        // Cancel if a later action bar is sent
+                        Integer actionNum = currentAction.get(uuid);
+                        if (actionNum == null) {
+                            cancel();
+                            return;
+                        }
+                        if (thisAction != actionNum) {
+                            cancel();
+                            return;
+                        }
 
-        TaskRunnable previousTask = activeXpTasks.remove(uuid);
-        if (previousTask != null) {
-            try {
-                previousTask.cancel();
-            } catch (IllegalStateException ignored) {
-            }
-        }
-
-        TaskRunnable xpTask = new TaskRunnable() {
-            @Override
-            public void run() {
-                if (!isGainingXp.contains(uuid)) {
-                    cancel();
-                    return;
-                }
-                Integer actionNum = currentAction.get(uuid);
-                if (actionNum == null) {
-                    cancel();
-                    return;
-                }
-                if (thisAction != actionNum) {
-                    cancel();
-                    return;
-                }
-                
-                if (isPaused.contains(uuid)) {
-                    return;
-                }
-
-                String message = getXpActionBarMessage(user, skill, currentXp, levelXp, xpGained, level, maxed, income);
-                uiProvider.sendActionBar(user, message);
-            }
-        };
-        activeXpTasks.put(uuid, xpTask);
-        plugin.getScheduler().timerSync(xpTask, 0, plugin.configInt(Option.ACTION_BAR_UPDATE_PERIOD) * 50L, TimeUnit.MILLISECONDS);
+                        String message = getXpActionBarMessage(user, skill, currentXp, levelXp, xpGained, level, maxed, income);
+                        uiProvider.sendActionBar(user, message);
+                    }
+                }, 0, plugin.configInt(Option.ACTION_BAR_UPDATE_PERIOD) * 50L, TimeUnit.MILLISECONDS);
+        // Schedule task to stop updating action bar
         plugin.getScheduler().scheduleSync(() -> {
             Integer timerNum = timer.get(uuid);
             if (timerNum != null) {
@@ -245,13 +189,6 @@ public abstract class ActionBarManager {
         timer.clear();
         currentAction.clear();
         isPaused.clear();
-        pauseUntil.clear();
-        lastSentMessage.clear();
-        lastSentTime.clear();
-        for (TaskRunnable task : activeXpTasks.values()) {
-            try { task.cancel(); } catch (IllegalStateException ignored) { }
-        }
-        activeXpTasks.clear();
         clearMessageCache();
     }
 
@@ -261,30 +198,26 @@ public abstract class ActionBarManager {
         timer.remove(uuid);
         currentAction.remove(uuid);
         isPaused.remove(uuid);
-        pauseUntil.remove(uuid);
-        lastSentMessage.remove(uuid);
-        lastSentTime.remove(uuid);
-        TaskRunnable task = activeXpTasks.remove(uuid);
-        if (task != null) {
-            try { task.cancel(); } catch (IllegalStateException ignored) { }
-        }
     }
 
     public void setPaused(User user, int time, TimeUnit timeUnit) {
         UUID uuid = user.getUuid();
-        long pauseMs = timeUnit.toMillis(time);
-        long newPauseUntil = System.currentTimeMillis() + pauseMs;
-        
-        Long currentPauseUntil = pauseUntil.get(uuid);
-        if (currentPauseUntil != null && currentPauseUntil > System.currentTimeMillis()) {
-            if (newPauseUntil > currentPauseUntil) {
-                pauseUntil.put(uuid, newPauseUntil);
-            }
-            return;
-        }
-        
         isPaused.add(uuid);
-        pauseUntil.put(uuid, newPauseUntil);
+        Integer action = currentAction.get(uuid);
+        if (action != null) {
+            currentAction.put(uuid, action + 1);
+        } else {
+            currentAction.put(uuid, 0);
+        }
+        int thisAction = this.currentAction.get(uuid);
+        plugin.getScheduler().scheduleSync(() -> {
+            Integer actionBarCurrentAction = currentAction.get(uuid);
+            if (actionBarCurrentAction != null) {
+                if (thisAction == actionBarCurrentAction) {
+                    isPaused.remove(uuid);
+                }
+            }
+        }, time, timeUnit);
     }
 
     public void sendAbilityActionBar(User user, String message) {
@@ -368,9 +301,6 @@ public abstract class ActionBarManager {
     }
 
     private String replacePlaceholderApi(User user, String message) {
-        if (!message.contains("%")) {
-            return message; // Skip PAPI if no % tokens found (huge performance gain)
-        }
         if (plugin.getHookManager().isRegistered(PlaceholderHook.class) && plugin.configBoolean(Option.ACTION_BAR_PLACEHOLDER_API)) {
             return plugin.getHookManager().getHook(PlaceholderHook.class).setPlaceholders(user, message);
         }
@@ -379,7 +309,6 @@ public abstract class ActionBarManager {
 
     public void clearMessageCache() {
         idleMessageCache.clear();
-        idleValueCache.clear();
     }
 
 }

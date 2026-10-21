@@ -12,7 +12,6 @@ import dev.aurelium.auraskills.bukkit.item.BukkitPotionType;
 import dev.aurelium.auraskills.bukkit.skills.agility.AgilityAbilities;
 import dev.aurelium.auraskills.bukkit.util.AttributeCompat;
 import dev.aurelium.auraskills.bukkit.util.CompatUtil;
-import dev.aurelium.auraskills.bukkit.util.PdcUtils;
 import dev.aurelium.auraskills.bukkit.util.PotionUtil;
 import dev.aurelium.auraskills.common.message.type.AbilityMessage;
 import dev.aurelium.auraskills.common.scheduler.TaskRunnable;
@@ -160,12 +159,10 @@ public class AlchemyAbilities extends BukkitAbilityImpl {
         if (failsChecks(player, ability)) return;
 
         ItemStack item = event.getItem();
-        if (item.getType() != Material.POTION) return;
+        if (item.getType() != Material.POTION || !(item.getItemMeta() instanceof PotionMeta meta)) return;
 
-        int durationBonus = PdcUtils.getOrDefault(item, durationBonusKey, PersistentDataType.INTEGER, 0);
+        int durationBonus = item.getItemMeta().getPersistentDataContainer().getOrDefault(durationBonusKey, PersistentDataType.INTEGER, 0);
         if (durationBonus <= 0) return;
-
-        if (!(item.getItemMeta() instanceof PotionMeta meta)) return;
 
         BukkitPotionType bukkitPotionType = new BukkitPotionType(meta);
         PotionType potionType = bukkitPotionType.getType();
@@ -324,48 +321,23 @@ public class AlchemyAbilities extends BukkitAbilityImpl {
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     User user = plugin.getUser(player);
 
-                    if (user.getAbilityLevel(ability) <= 0) {
-                        if (user.getStatModifier("AbilityModifier-WiseEffect") != null) {
-                            user.removeStatModifier("AbilityModifier-WiseEffect", true);
-                        }
-                        continue;
-                    }
-
-                    Collection<PotionEffect> activeEffects = player.getActivePotionEffects();
-                    if (!activeEffects.isEmpty()) {
+                    if (!player.getActivePotionEffects().isEmpty()) {
+                        if (failsChecks(player, ability)) continue;
                         // Get unique active potion effects
                         Set<PotionEffectType> uniqueTypesSet = new HashSet<>();
-                        for (PotionEffect potionEffect : activeEffects) {
+                        for (PotionEffect potionEffect : player.getActivePotionEffects()) {
                             uniqueTypesSet.add(potionEffect.getType());
                         }
                         int uniqueTypes = uniqueTypesSet.size();
+                        // Apply modifier
                         double wisdomPerType = getValue(ability, user);
                         double modifierValue = wisdomPerType * uniqueTypes;
-
-                        StatModifier currentModifier = user.getStatModifier("AbilityModifier-WiseEffect");
-                        if (currentModifier != null && currentModifier.value() == modifierValue) {
-                            continue;
-                        }
-
-                        if (failsChecks(player, ability)) {
-                            if (currentModifier != null) {
-                                user.removeStatModifier("AbilityModifier-WiseEffect", true);
-                            }
-                            continue;
-                        }
-
                         if (modifierValue > 0.0) {
                             StatModifier modifier = new StatModifier("AbilityModifier-WiseEffect", Stats.WISDOM, modifierValue, Operation.ADD);
                             user.addStatModifier(modifier, true);
-                        } else {
-                            if (currentModifier != null) {
-                                user.removeStatModifier("AbilityModifier-WiseEffect", true);
-                            }
                         }
                     } else {
-                        if (user.getStatModifier("AbilityModifier-WiseEffect") != null) {
-                            user.removeStatModifier("AbilityModifier-WiseEffect", true);
-                        }
+                        user.removeStatModifier("AbilityModifier-WiseEffect", true);
                     }
                 }
             }

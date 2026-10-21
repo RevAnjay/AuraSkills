@@ -26,9 +26,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.view.AnvilView;
 
-import org.bukkit.Material;
-
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -102,58 +99,25 @@ public class EnchantingAbilities extends BukkitAbilityImpl {
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     User user = plugin.getUser(player);
 
-                    if (user.getAbilityLevel(ability) <= 0) {
-                        if (user.getStatModifier(modifierName) != null) {
-                            user.removeStatModifier(modifierName, true);
-                        }
-                        continue;
-                    }
-
                     ItemStack item = player.getInventory().getItemInMainHand();
-                    // getEnchantments() returns empty map for items without meta — no need for hasItemMeta()
-                    if (item != null && item.getType() != Material.AIR) {
-                        Map<Enchantment, Integer> enchantments = item.getEnchantments();
-                        if (!enchantments.isEmpty()) {
-                            double strengthPerType = getValue(ability, user);
-                            int enchantCount = 0;
-                            List<String> excludedEnchants = ability.optionStringList("excluded_enchantments");
-                            for (Enchantment enchantment : enchantments.keySet()) {
-                                if (excludedEnchants.contains(enchantment.getKey().getKey())) {
-                                    continue;
-                                }
-                                enchantCount++;
-                            }
-                            double modifierValue = strengthPerType * enchantCount;
+                    if (!item.getEnchantments().isEmpty()) {
+                        if (failsChecks(player, ability)) continue;
 
-                            StatModifier currentModifier = user.getStatModifier(modifierName);
-                            if (currentModifier != null && currentModifier.value() == modifierValue) {
+                        // Apply modifier
+                        double strengthPerType = getValue(ability, user);
+                        int enchantCount = 0;
+                        for (Enchantment enchantment : item.getEnchantments().keySet()) {
+                            if (ability.optionStringList("excluded_enchantments").contains(enchantment.getKey().getKey())) {
                                 continue;
                             }
-
-                            if (failsChecks(player, ability)) {
-                                if (currentModifier != null) {
-                                    user.removeStatModifier(modifierName, true);
-                                }
-                                continue;
-                            }
-
-                            if (modifierValue > 0.0) {
-                                StatModifier modifier = new StatModifier(modifierName, Stats.STRENGTH, modifierValue, Operation.ADD);
-                                user.addStatModifier(modifier, false);
-                            } else {
-                                if (currentModifier != null) {
-                                    user.removeStatModifier(modifierName, true);
-                                }
-                            }
-                        } else {
-                            if (user.getStatModifier(modifierName) != null) {
-                                user.removeStatModifier(modifierName, true);
-                            }
+                            enchantCount++;
+                        }
+                        if (enchantCount > 0) {
+                            StatModifier modifier = new StatModifier(modifierName, Stats.STRENGTH, strengthPerType * enchantCount, Operation.ADD);
+                            user.addStatModifier(modifier, false);
                         }
                     } else {
-                        if (user.getStatModifier(modifierName) != null) {
-                            user.removeStatModifier(modifierName, true);
-                        }
+                        user.removeStatModifier(modifierName);
                     }
                 }
             }

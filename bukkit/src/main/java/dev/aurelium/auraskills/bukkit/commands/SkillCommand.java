@@ -2,7 +2,6 @@ package dev.aurelium.auraskills.bukkit.commands;
 
 import co.aikar.commands.BaseCommand;
 import co.aikar.commands.annotation.*;
-import dev.aurelium.auraskills.api.event.skill.AddLevelConfirmEvent;
 import dev.aurelium.auraskills.api.skill.Skill;
 import dev.aurelium.auraskills.bukkit.AuraSkills;
 import dev.aurelium.auraskills.common.message.MessageBuilder;
@@ -12,7 +11,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.Locale;
-import java.util.Map;
 
 @CommandAlias("%skills_alias")
 @Subcommand("skill")
@@ -34,7 +32,19 @@ public class SkillCommand extends BaseCommand {
         if (skill.isEnabled()) {
             int startLevel = plugin.config().getStartLevel();
             if (level >= startLevel) {
-                setSkillLevel(sender, player, skill, level);
+                int oldLevel = user.getSkillLevel(skill);
+                user.setSkillLevel(skill, level);
+                user.setSkillXp(skill, 0);
+                plugin.getStatManager().recalculateStats(user);
+                plugin.getRewardManager().updatePermissions(user);
+                plugin.getRewardManager().applyRevertCommands(user, skill, oldLevel, level);
+                plugin.getRewardManager().applyLevelUpCommands(user, skill, oldLevel, level);
+                // Reload items and armor to check for newly met requirements
+                plugin.getModifierManager().applyModifiers(player, true);
+                sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.SKILL_SETLEVEL_SET, locale)
+                        .replace("{skill}", skill.getDisplayName(locale))
+                        .replace("{level}", String.valueOf(level))
+                        .replace("{player}", player.getName()));
             } else {
                 sender.sendMessage(MessageBuilder.create(plugin).locale(locale)
                         .prefix()
@@ -46,24 +56,6 @@ public class SkillCommand extends BaseCommand {
         }
     }
 
-    public void setSkillLevel(CommandSender sender, Player player, Skill skill, int level) {
-        User user = plugin.getUser(player);
-        Locale locale = user.getLocale();
-        int oldLevel = user.getSkillLevel(skill);
-        user.setSkillLevel(skill, level);
-        user.setSkillXp(skill, 0);
-        plugin.getStatManager().recalculateStats(user);
-        plugin.getRewardManager().updatePermissions(user);
-        plugin.getRewardManager().applyRevertCommands(user, skill, oldLevel, level);
-        plugin.getRewardManager().applyLevelUpCommands(user, skill, oldLevel, level);
-        // Reload items and armor to check for newly met requirements
-        plugin.getModifierManager().applyModifiers(player, true);
-        sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.SKILL_SETLEVEL_SET, locale)
-                .replace("{skill}", skill.getDisplayName(locale))
-                .replace("{level}", String.valueOf(level))
-                .replace("{player}", player.getName()));
-    }
-
     @Subcommand("addlevel")
     @CommandCompletion("@players @skills")
     @CommandPermission("auraskills.command.skill.setlevel")
@@ -73,45 +65,10 @@ public class SkillCommand extends BaseCommand {
         Locale locale = user.getLocale();
         if (skill.isEnabled()) {
             int oldLevel = user.getSkillLevel(skill);
-            if (oldLevel >= skill.getMaxLevel()) {
-                // Skill is already maxed; reject the add
-                String msg = plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.SKILL_ADDLEVEL_MAX, locale)
-                        .replace("{skill}", skill.getDisplayName(locale))
-                        .replace("{player}", player.getName());
-                sender.sendMessage(msg);
-                if (sender != player) {
-                    player.sendMessage(msg);
-                }
-                plugin.getServer().getPluginManager().callEvent(new AddLevelConfirmEvent(player, skill, oldLevel, 0, false));
-                return;
-            }
-            int newLevel = Math.min(oldLevel + level, skill.getMaxLevel());
-            int wasted = oldLevel + level - newLevel;
-            if (wasted > 0) {
-                // Always open confirmation GUI to the target player
-                Map<String, Object> properties = Map.of(
-                        "target", player,
-                        "skill", skill,
-                        "new_level", newLevel,
-                        "wasted", wasted);
-                plugin.getScheduler().executeAtEntity(player, task -> plugin.getSlate().openMenu(player, "skill_addlevel_confirm", properties));
-                if (sender != player) {
-                    sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.SKILL_ADDLEVEL_WASTED, locale)
-                            .replace("{skill}", skill.getDisplayName(locale))
-                            .replace("{wasted}", String.valueOf(wasted))
-                            .replace("{player}", player.getName()));
-                }
-                return;
-            }
-            this.onSkillSetlevel(sender, player, skill, newLevel);
-            plugin.getServer().getPluginManager().callEvent(new AddLevelConfirmEvent(player, skill, newLevel, wasted, true));
+            level = oldLevel + level;
+            this.onSkillSetlevel(sender, player, skill, level);
         } else {
-            String msg = plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.UNKNOWN_SKILL, locale);
-            sender.sendMessage(msg);
-            if (sender != player) {
-                player.sendMessage(msg);
-            }
-            plugin.getServer().getPluginManager().callEvent(new AddLevelConfirmEvent(player, skill, user.getSkillLevel(skill), 0, false));
+            sender.sendMessage(plugin.getPrefix(locale) + plugin.getMsg(CommandMessage.UNKNOWN_SKILL, locale));
         }
     }
 

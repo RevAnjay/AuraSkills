@@ -110,10 +110,11 @@ public class FightingAbilities extends BukkitAbilityImpl {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void bleedListener(EntityDamageByEntityEvent event) {
-        if (!(event.getDamager() instanceof Player player)) return;
-
         var ability = Abilities.BLEED;
+
         if (isDisabled(ability)) return;
+
+        if (!(event.getDamager() instanceof Player player)) return;
 
         if (failsChecks(player, ability)) return;
 
@@ -266,15 +267,15 @@ public class FightingAbilities extends BukkitAbilityImpl {
 
     @EventHandler
     public void parryReady(PlayerInteractEvent event) {
+        var ability = Abilities.PARRY;
+        if (isDisabled(ability)) return;
+
         if (event.getAction() != Action.LEFT_CLICK_AIR && event.getAction() != Action.LEFT_CLICK_BLOCK) return;
 
         Player player = event.getPlayer();
         if (!player.getInventory().getItemInMainHand().getType().toString().contains("SWORD")) {
             return;
         }
-
-        var ability = Abilities.PARRY;
-        if (isDisabled(ability)) return;
 
         if (failsChecks(player, ability)) return;
 

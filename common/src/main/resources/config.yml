@@ -40,8 +40,6 @@ hooks:
   PlaceholderAPI:
     enabled: true
   ProtocolLib:
-    enabled: false
-  PacketEvents:
     enabled: true
   Slimefun:
     enabled: true
@@ -55,7 +53,6 @@ hooks:
       - 'Example'
     blocked_check_replace_regions:
       - 'Example'
-    checked_worlds: []
   MythicMobs:
     enabled: true
     handle_damage_increase: true

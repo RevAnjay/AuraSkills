@@ -57,9 +57,6 @@ public class PlayerJoinQuit implements Listener {
         }
         User user = plugin.getUser(player);
 
-        // Clean up ActionBarManager UUID maps to prevent memory leak
-        plugin.getUiProvider().getActionBarManager().resetActionBar(user);
-
         plugin.getScheduler().executeAsync(() -> {
             try {
                 plugin.getStorageProvider().saveSafely(user);

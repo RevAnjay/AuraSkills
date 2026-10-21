@@ -19,7 +19,7 @@ public class MenuFileManager {
 
     private final AuraSkills plugin;
     public static final String[] MENU_NAMES = {
-            "abilities", "leaderboard", "level_progression", "skills", "sources", "stats", "stat_info", "skill_addlevel_confirm"
+            "abilities", "leaderboard", "level_progression", "skills", "sources", "stats", "stat_info"
     };
 
     public MenuFileManager(AuraSkills plugin) {
